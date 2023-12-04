@@ -1,9 +1,23 @@
+# Parameters for two layer flows using GeophysicalFlows.jl
+
 module Params
+
+# include all modules
+include("utils.jl")
+
+# compile other packages
+using GeophysicalFlows, FFTW, Statistics, Random, CUDA
+
+# local import
+import .Utils
+
+
 
   	 ### Save path and device ###
 
-expt_name = ""
-path_name = "" * expt_name * "/output"
+# format: kappa_star = 0.1, Ktopo = 25, h_star = 1
+expt_name = "/kappa01_kt25_h1"              
+path_name = "/scratch/mp6191/GeophysicalFlows_expts" * expt_name * "/output" * expt_name * ".jld2"
 
 dev = GPU() # or CPU()
 
@@ -25,43 +39,48 @@ H = [H1, H2]                   # rest depth of each layer
 
     	 ### Control parameters ###
 
-beta_star = 0.
-kappa_star = 0.1
-h_star = 5.
+beta_star = 0.      # nondimensional β, β* = βλ^2/U
+kappa_star = 0.1    # nondimensional κ, κ* = κλ/U
+h_star = 5.         # nondimensional advection-topography, h* = f_0 * h_0 / (U * H * K_t)
 
 
 
     	 ### Planetary parameters ###
 
-U0 = 0.01
-U = [2 * U0, 0 * U0]
+U0 = 0.01              						   # mean shear strength
+U = [2 * U0, 0 * U0]   						   # velocity in each layer
 
-f0 = 1e-4
-beta = U0 / Ld^2 * beta_star
+f0 = 1e-4                                      # constant Coriolis
+beta = U0 / Ld^2 * beta_star                   # y gradient of Coriolis
 
-g = 9.81
-rho0 = 1000.
-rho1 = rho0 + 25.
-rho2 = rho1 + (rho1 * f0^2 Ld^2) / (g * H0)
-rho = [rho1, rho2]
+g = 9.81                                       # gravity
+rho0 = 1000.                                   # reference density
+rho1 = rho0 + 25.                              # layer 1 density
+rho2 = rho1 + (rho1 * f0^2 Ld^2) / (g * H0)    # layer 2 density given the deformation radius and other parameters
+rho = [rho1, rho2]							   # density in each layer
 # b = -g / rho0 .* [rho1, rho2]
 
-kappa = U0 / Ld * kappa_star
-
-
+kappa = 2 * U0 / Ld * kappa_star	           # linear Ekman drag, the factor of 2 is to be consistent with Gallet Ferrari (and Thompson Young)
 
       	   ### Topography ###
 	   
-Ktopo = 25 * (2 * pi / Lx)
-hrms = h_star * U0 * H0 * Ktopo / f0
-h = utils.monoscale_random(hrms, Ktopo, Lx, nx)
-eta = f0 / H2 .* h
+Ktopo = 25 * (2 * pi / Lx)							   # topographic wavenumber
+hrms = h_star * U0 * H0 * Ktopo / f0                   # rms topographic height 
+h = Utils.monoscale_random(hrms, Ktopo, Lx, nx, dev)   # random monoscale topography
+eta = f0 / H2 .* h                                     # bottom layer topographic PV
 
 
 
       	   ### Time stepping ###
 
-Ti = Ld / U0
-dt = 300.
-nsteps = ceil(Int, 750 * Ti / dt)
-nsnaps = ???
+Ti = Ld / U0               # nondimensional time
+dt = 60 * 3.               # time step in seconds
+nsubs = 60 * 60 * 24 * 5   # snapshot frequency in seconds
+nsteps = ceil(Int, ceil(Int, 750 * Ti / dt) * dt / nsubs) * nsubs  # total number of model steps, nsubs should divide nsteps
+stepper = "FilteredRK4"    # timestepper
+
+
+			### Initial condition ###
+
+K0 = L / (4 * Ld)          # most unstable Eady (non-dimensional) wavenumber, K0 = Km / (2 * pi / L) and Km = 2 * pi / (4 * Ld)
+E0 = 1000 * (Ld * U0)^2    # total initial kinetic energy

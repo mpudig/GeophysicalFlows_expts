@@ -1,12 +1,21 @@
+# Some useful extra functions for running my experiments in GeophysicalFlows
+
 module Utils
 
+# compile other packages
+using GeophysicalFlows, FFTW, Statistics, Random, CUDA
+
 """
-	monoscale_random(hrms, Ktopo, Lx, nx)
+	monoscale_random(hrms, Ktopo, Lx, nx, dev, T)
 
 Returns a 2D topography field defined by a single length scale with random phases. 
 """
 
-function monoscale_random(hrms, Ktopo, Lx, nx)
+function monoscale_random(hrms, Ktopo, Lx, nx, dev)
+	A = device_array(dev)
+
+	# Random seed for reproducability purposes
+	if dev == CPU(); Random.seed!(1234); else; CUDA.seed!(1234)
 
 	 # Wavenumber grid
 	 nk = Int(nx / 2 + 1)
@@ -30,11 +39,33 @@ function monoscale_random(hrms, Ktopo, Lx, nx)
 	 c = hrms / sqrt.(mean(h.^2))
 	 h = c .* h
 
-	 return h
+	 return A(h)
 end
 
 
+"""
+	set_initial_condition!(prob, grid, K0, E0)
 
+	Sets the initial condition of MultiLayerQG to be a random q(x,y) field with baroclinic structure
+	and with energy localized in spectral space about K = K0 and with total kinetic energy equal to E0
+"""
+
+function set_initial_condition!(prob, grid, K0, E0)
+	dev = grid.device
+	T = eltype(grid)
+	A = device_array(dev)
+	if dev == CPU(); Random.seed!(4321); else; CUDA.seed!(4321)
+	const newaxis = [CartesianIndex()]
+
+	q0 = peakedisotropicspectrum(grid, kpeak = K0, E₀ = E0)
+	q0 = q0[:, :, newaxis] .* [1, -1][newaxis, newaxis, :]
+	q0 = A(q0)
+
+	MultiLayerQG.set_q!(prob, q0)
+ end
+
+
+#=
 """
 	set_psih(K0, E0, Lx, nx, Kd, H)
 
@@ -79,20 +110,4 @@ function set_q(K0, E0, Lx, nx, Kd, H, S)
 
 	 return psih
 end
-	 
-
-
-
-    I = np.eye(2)[:, :, np.newaxis, np.newaxis]
-    M = S[:, :, np.newaxis, np.newaxis] - I * K2
-
-    # Get qh from psih, and q from qh                                                                                                                                             
-    qh = np.zeros_like(psih)
-    qh[0] = M[0,0] * psih[0] + M[0,1] * psih[1]
-    qh[1] = M[1,0] * psih[0] + M[1,1] * psih[1]
-
-    # Get q from qh                                                                                                                                                               
-    q = np.real(np.fft.ifftn(qh, axes = (-2, -1)))
-
-    return q
-
+=#
