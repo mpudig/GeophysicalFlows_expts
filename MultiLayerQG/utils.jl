@@ -15,7 +15,11 @@ function monoscale_random(hrms, Ktopo, Lx, nx, dev)
 	A = device_array(dev)
 
 	# Random seed for reproducability purposes
-	if dev == CPU(); Random.seed!(1234); else; CUDA.seed!(1234)
+	if dev == CPU()
+		Random.seed!(1234)
+	else
+		CUDA.seed!(1234)
+	end
 
 	 # Wavenumber grid
 	 nk = Int(nx / 2 + 1)
@@ -54,7 +58,14 @@ function set_initial_condition!(prob, grid, K0, E0)
 	dev = grid.device
 	T = eltype(grid)
 	A = device_array(dev)
-	if dev == CPU(); Random.seed!(4321); else; CUDA.seed!(4321)
+	
+	# Random seed for reproducability purposes
+	if dev == CPU()
+		Random.seed!(1234)
+	else
+		CUDA.seed!(1234)
+	end
+
 	const newaxis = [CartesianIndex()]
 
 	q0 = peakedisotropicspectrum(grid, kpeak = K0, E₀ = E0)
