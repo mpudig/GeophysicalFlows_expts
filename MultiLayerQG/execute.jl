@@ -1,7 +1,5 @@
 # This is the driver: set up, run, and save the model
 
-module Execute
-
 # include all modules
 include("utils.jl")
 include("params.jl")
@@ -99,6 +97,4 @@ function start!()
       set_initial_condition!(prob, grid, Params.K0, Params.E0)
 
       simulate!(nsteps, nsubs, grid, prob, out, diags)
-end
-
 end
