@@ -84,3 +84,5 @@ stepper = "FilteredRK4"    # timestepper
 
 K0 = L / (4 * Ld)          # most unstable Eady (non-dimensional) wavenumber, K0 = Km / (2 * pi / L) and Km = 2 * pi / (4 * Ld)
 E0 = 1000 * (Ld * U0)^2    # total initial kinetic energy
+
+end

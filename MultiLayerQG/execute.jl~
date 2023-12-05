@@ -1,8 +1,0 @@
-include("utils.jl")
-include("params.jl")
-
-using GeophysicalFlows, FFTW, Random, Statistics
-
-path = params.path
-
-

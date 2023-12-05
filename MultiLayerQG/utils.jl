@@ -62,7 +62,7 @@ function set_initial_condition!(prob, grid, K0, E0)
 	q0 = A(q0)
 
 	MultiLayerQG.set_q!(prob, q0)
- end
+end
 
 
 #=
@@ -111,3 +111,5 @@ function set_q(K0, E0, Lx, nx, Kd, H, S)
 	 return psih
 end
 =#
+
+end

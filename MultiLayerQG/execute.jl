@@ -101,5 +101,4 @@ function start!()
       simulate!(nsteps, nsubs, grid, prob, out, diags)
 end
 
-# Now, run everything
-start!()
+end
