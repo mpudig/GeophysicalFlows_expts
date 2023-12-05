@@ -25,7 +25,7 @@ dev = Params.dev
 nx = Params.nx
 Lx = Params.Lx
 
-nz = Params.nz
+nlayers = Params.nz
 H = Params.H
 
 
@@ -77,7 +77,9 @@ function simulate!(nsteps, nsubs, grid, prob, out, diags)
             saveoutput(out);
       end 
 end
-        
+
+A = device_array(dev)
+get_sol(prob) = A(irfft(prob.sol, grid.nx))      # extracts the solution in physical space
 
         ### Initialize and then call step forward function ###
 
@@ -91,10 +93,10 @@ function start!()
       E = Diagnostic(MultiLayerQG.energies, prob; nsteps)
       diags = [E]
 
-      filename = Params.pathname
+      filename = Params.path_name
       out = Output(prob, filename, (:sol, get_sol), (:E, MultiLayerQG.energies))
 
-      set_initial_condition!(prob, grid, Params.K0, Params.E0)
+      Utils.set_initial_condition!(prob, grid, Params.K0, Params.E0)
 
       simulate!(nsteps, nsubs, grid, prob, out, diags)
 end

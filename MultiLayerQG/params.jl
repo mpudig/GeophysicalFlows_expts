@@ -56,7 +56,7 @@ beta = U0 / Ld^2 * beta_star                   # y gradient of Coriolis
 g = 9.81                                       # gravity
 rho0 = 1000.                                   # reference density
 rho1 = rho0 + 25.                              # layer 1 density
-rho2 = rho1 + (rho1 * f0^2 Ld^2) / (g * H0)    # layer 2 density given the deformation radius and other parameters
+rho2 = rho1 + (rho1 * f0^2 * Ld^2) / (g * H0)  # layer 2 density given the deformation radius and other parameters
 rho = [rho1, rho2]							   # density in each layer
 # b = -g / rho0 .* [rho1, rho2]
 
@@ -82,7 +82,7 @@ stepper = "FilteredRK4"    # timestepper
 
 			### Initial condition ###
 
-K0 = L / (4 * Ld)          # most unstable Eady (non-dimensional) wavenumber, K0 = Km / (2 * pi / L) and Km = 2 * pi / (4 * Ld)
+K0 = Lx / (4 * Ld)         # most unstable Eady (non-dimensional) wavenumber, K0 = Km / (2 * pi / L) and Km = 2 * pi / (4 * Ld)
 E0 = 1000 * (Ld * U0)^2    # total initial kinetic energy
 
 end

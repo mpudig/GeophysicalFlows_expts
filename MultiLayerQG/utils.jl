@@ -58,7 +58,7 @@ function set_initial_condition!(prob, grid, K0, E0)
 	dev = grid.device
 	T = eltype(grid)
 	A = device_array(dev)
-	
+
 	# Random seed for reproducability purposes
 	if dev == CPU()
 		Random.seed!(1234)
@@ -66,10 +66,11 @@ function set_initial_condition!(prob, grid, K0, E0)
 		CUDA.seed!(1234)
 	end
 
-	const newaxis = [CartesianIndex()]
+	kpeak = K0
+	E₀ = E0
 
-	q0 = peakedisotropicspectrum(grid, kpeak = K0, E₀ = E0)
-	q0 = q0[:, :, newaxis] .* [1, -1][newaxis, newaxis, :]
+	q0 = GeophysicalFlows.peakedisotropicspectrum(grid, kpeak, E₀)
+	q0 = q0[:, :, [CartesianIndex()]] .* [1, -1][[CartesianIndex()], [CartesianIndex()], :]
 	q0 = A(q0)
 
 	MultiLayerQG.set_q!(prob, q0)
