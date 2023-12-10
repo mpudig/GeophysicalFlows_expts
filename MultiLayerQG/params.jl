@@ -47,20 +47,20 @@ h_star = 5.         # nondimensional advection-topography, h* = f_0 * h_0 / (U *
 
     	 ### Planetary parameters ###
 
-U0 = 0.01              						   # mean shear strength
-U = [2 * U0, 0 * U0]   						   # velocity in each layer
+U0 = 0.01              						     # mean shear strength
+U = [2 * U0, 0 * U0]   						     # velocity in each layer
 
-f0 = 1e-4                                      # constant Coriolis
-beta = U0 / Ld^2 * beta_star                   # y gradient of Coriolis
+f0 = 1e-4                                        # constant Coriolis
+beta = U0 / Ld^2 * beta_star                     # y gradient of Coriolis
 
-g = 9.81                                       # gravity
-rho0 = 1000.                                   # reference density
-rho1 = rho0 + 25.                              # layer 1 density
-rho2 = rho1 + (rho1 * f0^2 * Ld^2) / (g * H0)  # layer 2 density given the deformation radius and other parameters
-rho = [rho1, rho2]							   # density in each layer
+g = 9.81                                         # gravity
+rho0 = 1000.                                     # reference density
+rho1 = rho0 + 25.                                # layer 1 density
+rho2 = rho1 / (1 - (4 * f0^2 * Ld^2) / (g * H0)) # layer 2 density given the deformation radius and other parameters
+rho = [rho1, rho2]							     # density in each layer
 # b = -g / rho0 .* [rho1, rho2]
 
-kappa = 2 * U0 / Ld * kappa_star	           # linear Ekman drag, the factor of 2 is to be consistent with Gallet Ferrari (and Thompson Young)
+kappa = 2 * U0 / Ld * kappa_star	             # linear Ekman drag, the factor of 2 is to be consistent with Gallet Ferrari (and Thompson Young)
 
       	   ### Topography ###
 	   
