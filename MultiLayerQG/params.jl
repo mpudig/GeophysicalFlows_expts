@@ -74,15 +74,17 @@ eta = f0 / H2 .* h                                     # bottom layer topographi
       	   ### Time stepping ###
 
 Ti = Ld / U0               # nondimensional time
-dt = 60 * 3.               # time step in seconds
-nsubs = 60 * 60 * 24 * 5   # snapshot frequency in seconds
-nsteps = ceil(Int, ceil(Int, 750 * Ti / dt) * dt / nsubs) * nsubs  # total number of model steps, nsubs should divide nsteps
-stepper = "FilteredRK4"    # timestepper
+tmax = 750 * Ti            # final time in seconds
+dt = 60 * 60.              # time step in seconds
+dtsnap = 60 * 60 * 24 * 5  # snapshot frequency in seconds
+nsubs = Int(dtsnap / dt)   # number of time steps between snapshots
+nsteps = ceil(Int, ceil(Int, tmax / dt) / nsubs) * nsubs  # total number of model steps, nsubs should divide nsteps
+stepper = "FilteredRK4"   # timestepper
 
 
 			### Initial condition ###
 
 K0 = Lx / (4 * Ld)         # most unstable Eady (non-dimensional) wavenumber, K0 = Km / (2 * pi / L) and Km = 2 * pi / (4 * Ld)
-E0 = 1000 * (Ld * U0)^2    # total initial kinetic energy
+E0 = 1e-6                  # total initial kinetic energy
 
 end

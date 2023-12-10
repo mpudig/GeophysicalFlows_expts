@@ -55,7 +55,7 @@ stepper = Params.stepper
 
       ### Step the model forward ###
 
-function simulate!(nsteps, nsubs, grid, prob, out, diags)
+function simulate!(nsteps, nsubs, grid, prob, out, diags, E)
       saveproblem(out)
       sol, clock, params, vars, grid = prob.sol, prob.clock, prob.params, prob.vars, prob.grid
       
@@ -66,26 +66,36 @@ function simulate!(nsteps, nsubs, grid, prob, out, diags)
             if j % (1000 / nsubs) == 0
                   cfl = clock.dt * maximum([maximum(vars.u) / grid.dx, maximum(vars.v) / grid.dy])
       
-                  log = @sprintf("step: %04d, t: %.1f, cfl: %.2f, walltime: %.2f min",
-                              clock.step, clock.t, cfl, (time()-startwalltime)/60)
+                  log = @sprintf("step: %04d, t: %.1f, cfl: %.3f, KE₁: %.3e, KE₂: %.3e, PE: %.3e, walltime: %.2f min",
+                   clock.step, clock.t, cfl, E.data[E.i][1][1], E.data[E.i][1][2], E.data[E.i][2][1], (time()-startwalltime)/60)
       
                   println(log)
+                  flush(stdout)
             end
 
-            stepforward!(prob, diags, nsubs);
-            MultiLayerQG.updatevars!(prob);
-            saveoutput(out);
+            stepforward!(prob, diags, nsubs)
+            MultiLayerQG.updatevars!(prob)
+            saveoutput(out)
       end 
 end
 
-A = device_array(dev)
-get_sol(prob) = A(irfft(prob.sol, grid.nx))      # extracts the solution in physical space
+      ### Get real space solution ###
 
-        ### Initialize and then call step forward function ###
+function get_q(prob)
+      sol, grid = prob.sol, prob.grid
+      dev = grid.device
+      A = device_array(dev)
+
+      q = A(irfft(prob.sol, grid.nx))
+
+      return q
+end
+
+      ### Initialize and then call step forward function ###
 
 function start!()
       prob = MultiLayerQG.Problem(nlayers, dev; nx, Lx, f₀, β, g, U, H, ρ, eta, μ, 
-                                  dt, stepper)
+                                  dt, stepper, aliased_fraction=0)
 
       sol, clock, params, vars, grid = prob.sol, prob.clock, prob.params, prob.vars, prob.grid
       x, y = grid.x, grid.y
@@ -94,9 +104,11 @@ function start!()
       diags = [E]
 
       filename = Params.path_name
-      out = Output(prob, filename, (:sol, get_sol), (:E, MultiLayerQG.energies))
+      if isfile(filename); rm(filename); end
+
+      out = Output(prob, filename, (:q, get_q), (:E, MultiLayerQG.energies))
 
       Utils.set_initial_condition!(prob, grid, Params.K0, Params.E0)
 
-      simulate!(nsteps, nsubs, grid, prob, out, diags)
+      simulate!(nsteps, nsubs, grid, prob, out, diags, E)
 end

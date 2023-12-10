@@ -35,7 +35,7 @@ function monoscale_random(hrms, Ktopo, Lx, nx, dev)
 
 	 # Isotropic Gaussian in wavenumber space about mean, Ktopo, with standard deviation, sigma 
 	 sigma = sqrt(2) * dk
-	 hh = exp.(-(K .- Ktopo).^2 ./ (2 * sigma^2) .* exp.(2 * pi * im .* rand(nk, nl)))
+	 hh = exp.(-(K .- Ktopo).^2 ./ (2 * sigma^2)) .* exp.(2 * pi * im .* rand(nk, nl))
 
 	 # Recover h from hh
 	 h = irfft(hh, nx)
