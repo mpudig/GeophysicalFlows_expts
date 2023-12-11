@@ -74,8 +74,8 @@ eta = f0 / H2 .* h                                     # bottom layer topographi
       	   ### Time stepping ###
 
 Ti = Ld / U0               # nondimensional time
-tmax = 750 * Ti            # final time in seconds
-dt = 60 * 60.              # time step in seconds
+tmax = 600 * Ti            # final time in seconds
+dt = 60 * 3.               # time step in seconds
 dtsnap = 60 * 60 * 24 * 5  # snapshot frequency in seconds
 nsubs = Int(dtsnap / dt)   # number of time steps between snapshots
 nsteps = ceil(Int, ceil(Int, tmax / dt) / nsubs) * nsubs  # total number of model steps, nsubs should divide nsteps

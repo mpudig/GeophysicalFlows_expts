@@ -63,7 +63,7 @@ function simulate!(nsteps, nsubs, grid, prob, out, diags, E)
       frames = 0:round(Int, nsteps / nsubs)
       
       for j = frames
-            if j % (1000 / nsubs) == 0
+            if j % 5 == 0
                   cfl = clock.dt * maximum([maximum(vars.u) / grid.dx, maximum(vars.v) / grid.dy])
       
                   log = @sprintf("step: %04d, t: %.1f, cfl: %.3f, KE₁: %.3e, KE₂: %.3e, PE: %.3e, walltime: %.2f min",

@@ -68,10 +68,11 @@ function set_initial_condition!(prob, grid, K0, E0)
 
 	kpeak = K0
 	E₀ = E0
-
-	q0 = GeophysicalFlows.peakedisotropicspectrum(grid, kpeak, E₀)
-	q0 = q0[:, :, [CartesianIndex()]] .* [1, -1][[CartesianIndex()], [CartesianIndex()], :]
-	q0 = A(q0)
+	
+	q0 = A(zeros(grid.nx, grid.ny, 2))
+	q0mag = GeophysicalFlows.peakedisotropicspectrum(grid, kpeak, E₀)
+	CUDA.@allowscalar q0[:,:,1] = q0mag
+	CUDA.@allowscalar q0[:,:,2] = -1 .* q0mag
 
 	MultiLayerQG.set_q!(prob, q0)
 end
