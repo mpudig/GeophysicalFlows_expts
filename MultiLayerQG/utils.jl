@@ -54,27 +54,63 @@ end
 	and with energy localized in spectral space about K = K0 and with total kinetic energy equal to E0
 """
 
-function set_initial_condition!(prob, grid, K0, E0)
+function set_initial_condition!(prob, E0, K0, Kd)
+	params = prob.params
+	grid = prob.grid
 	dev = grid.device
 	T = eltype(grid)
 	A = device_array(dev)
 
 	# Random seed for reproducability purposes
 	if dev == CPU()
-		Random.seed!(1234)
+		Random.seed!(4321)
 	else
-		CUDA.seed!(1234)
+		CUDA.seed!(4321)
 	end
 
-	kpeak = K0
-	E₀ = E0
-	
-	q0 = A(zeros(grid.nx, grid.ny, 2))
-	q0mag = GeophysicalFlows.peakedisotropicspectrum(grid, kpeak, E₀)
-	CUDA.@allowscalar q0[:,:,1] = q0mag
-	CUDA.@allowscalar q0[:,:,2] = -1 .* q0mag
+	# Grid
+	nx = grid.nx
+	Lx = grid.Lx
 
-	MultiLayerQG.set_q!(prob, q0)
+	nk = Int(nx / 2 + 1)
+	nl = nx
+   
+	dk = 2 * pi / Lx
+	dl = dk
+	
+	k = reshape( rfftfreq(nx, dk * nx), (nk, 1) )
+	l = reshape( fftfreq(nx, dl * nx), (1, nl) )
+
+	K2 = @. k^2 + l^2
+	K = @. sqrt(K2)
+
+	# Isotropic Gaussian in wavenumber space about mean, K0, with standard deviation, sigma 
+	sigma = sqrt(2) * dk
+	psihmag = exp.(-(K .- K0).^2 ./ (2 * sigma^2)) .* exp.(2 * pi * im .* rand(nk, nl))
+
+	psih = A(zeros(nk, nl, 2) .* im)
+	CUDA.@allowscalar psih[:,:,1] = psihmag
+	CUDA.@allowscalar psih[:,:,2] = -1 .* psihmag
+
+	# Calculate average energy and scaling factor so that average energy is prescribed
+	M = nx^2
+	H = params.H
+
+	KE = 1 / (2 * Lx^2 * sum(H)) * sum(H[1] .* K2 .* abs.(psih[:,:,1] ./ M).^2) + sum((H[2] .* K2 .* abs.(psih[:,:,2] ./ M).^2))
+	APE = 1 / (2 * Lx^2 * sum(H) ) * Kd^2 / 4 * sum( abs.(psih[:,:,1] - psih[:,:,2]).^2 ./ M^2  )
+	E = KE + APE
+	c = sqrt(E0 / E)
+	CUDA.@allowscalar psih = c .* psih
+
+	# Invert psih to get qh, then transform to real space 
+	f0, gp = params.f₀, params.g′
+
+	qh = A(zeros(nk, nl, 2) .* im)
+	CUDA.@allowscalar qh[:,:,1] = - K .* psih[:,:,1] .+ f0^2 / (gp * H1) .* (psih[:,:,2] .- psih[:,:,1])
+	CUDA.@allowscalar qh[:,:,2] = - K .* psih[:,:,2] .+ f0^2 / (gp * H2) .* (psih[:,:,1] .- psih[:,:,2])
+
+	q = A(irfft(qh, nx))
+	MultiLayerQG.set_q!(prob, q)
 end
 
 
@@ -108,7 +144,7 @@ function set_q(K0, E0, Lx, nx, Kd, H, S)
 
          # Isotropic Gaussian in wavenumber space about mean, K0, with standard deviation, sigma, and with baroclinic structure
          sigma = sqrt(2) * dk
-         psih = psih = exp.(-(K .- K0).^2 ./ (2 * sigma^2)) .* exp.(2 * pi * im .* rand(nk, nl))
+         psih = exp.(-(K .- K0).^2 ./ (2 * sigma^2)) .* exp.(2 * pi * im .* rand(nk, nl))
 	 psih = psih[newaxis, :, :] .* [1, -1][:, newaxis, newaxis]
 
 
