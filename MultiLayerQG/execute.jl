@@ -108,7 +108,7 @@ function start!()
 
       out = Output(prob, filename, (:q, get_q), (:E, MultiLayerQG.energies))
 
-      Utils.set_initial_condition!(prob, grid, Params.K0, Params.E0)
+      Utils.set_initial_condition!(prob, Params.E0, Params.K0, Params.Kd)
 
       simulate!(nsteps, nsubs, grid, prob, out, diags, E)
 end
