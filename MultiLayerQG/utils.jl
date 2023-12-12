@@ -28,17 +28,17 @@ function monoscale_random(hrms, Ktopo, Lx, nx, dev)
 	 dk = 2 * pi / Lx
 	 dl = dk
 	 
-	 k = reshape( rfftfreq(nx, dk * nx), (nk, 1) )
-	 l = reshape( fftfreq(nx, dl * nx), (1, nl) )
+	 k = A(reshape( rfftfreq(nx, dk * nx), (nk, 1) ))
+	 l = A(reshape( fftfreq(nx, dl * nx), (1, nl) ))
 
-	 K = @. sqrt(k^2 + l^2)
+	 K = A(@. sqrt(k^2 + l^2))
 
 	 # Isotropic Gaussian in wavenumber space about mean, Ktopo, with standard deviation, sigma 
 	 sigma = sqrt(2) * dk
-	 hh = exp.(-(K .- Ktopo).^2 ./ (2 * sigma^2)) .* exp.(2 * pi * im .* rand(nk, nl))
+	 hh = A(exp.(-(K .- Ktopo).^2 ./ (2 * sigma^2)) .* exp.(2 * pi * im .* rand(nk, nl)))
 
 	 # Recover h from hh
-	 h = irfft(hh, nx)
+	 h = A(irfft(hh, nx))
 
 	 c = hrms / sqrt.(mean(h.^2))
 	 h = c .* h
@@ -78,15 +78,15 @@ function set_initial_condition!(prob, E0, K0, Kd)
 	dk = 2 * pi / Lx
 	dl = dk
 	
-	k = reshape( rfftfreq(nx, dk * nx), (nk, 1) )
-	l = reshape( fftfreq(nx, dl * nx), (1, nl) )
+	k = A(reshape( rfftfreq(nx, dk * nx), (nk, 1) ))
+	l = A(reshape( fftfreq(nx, dl * nx), (1, nl) ))
 
-	K2 = @. k^2 + l^2
-	K = @. sqrt(K2)
+	K2 = A(@. k^2 + l^2)
+	K = A(@. sqrt(K2))
 
 	# Isotropic Gaussian in wavenumber space about mean, K0, with standard deviation, sigma 
 	sigma = sqrt(2) * dk
-	psihmag = exp.(-(K .- K0).^2 ./ (2 * sigma^2)) .* exp.(2 * pi * im .* rand(nk, nl))
+	psihmag = A(exp.(-(K .- K0).^2 ./ (2 * sigma^2)) .* exp.(2 * pi * im .* rand(nk, nl)))
 
 	psih = A(zeros(nk, nl, 2) .* im)
 	CUDA.@allowscalar psih[:,:,1] = psihmag
@@ -106,8 +106,8 @@ function set_initial_condition!(prob, E0, K0, Kd)
 	f0, gp = params.f₀, params.g′
 
 	qh = A(zeros(nk, nl, 2) .* im)
-	CUDA.@allowscalar qh[:,:,1] = - K .* psih[:,:,1] .+ f0^2 / (gp * H1) .* (psih[:,:,2] .- psih[:,:,1])
-	CUDA.@allowscalar qh[:,:,2] = - K .* psih[:,:,2] .+ f0^2 / (gp * H2) .* (psih[:,:,1] .- psih[:,:,2])
+	CUDA.@allowscalar qh[:,:,1] = - K .* psih[:,:,1] .+ f0^2 / (gp * H[1]) .* (psih[:,:,2] .- psih[:,:,1])
+	CUDA.@allowscalar qh[:,:,2] = - K .* psih[:,:,2] .+ f0^2 / (gp * H[2]) .* (psih[:,:,1] .- psih[:,:,2])
 
 	q = A(irfft(qh, nx))
 	MultiLayerQG.set_q!(prob, q)
