@@ -83,8 +83,9 @@ end
 
 function get_q(prob)
       sol, grid = prob.sol, prob.grid
-      dev = grid.device
-      A = device_array(dev)
+      
+      # We want to save CPU arrays not GPU arrays
+      A = device_array(CPU())
 
       q = A(irfft(prob.sol, grid.nx))
 

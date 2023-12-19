@@ -1,6 +1,6 @@
 # See https://github.com/pseastham/jld2h5 for source code
 
-using HDF5, JLD2, CUDA
+using HDF5, JLD2
 
 # include function which converts jld2 to hdf5
 include("jld2h5.jl")
@@ -11,7 +11,7 @@ import .Params
 
 # Get path
 expt_name = Params.expt_name             
-file = "../../output" * expt_name
+file = "../../output" * expt_name * ".jld2"
 
 # Convert jld2 to hdf5
 jld2h5(file)

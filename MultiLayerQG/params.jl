@@ -84,7 +84,7 @@ stepper = "FilteredRK4"   # timestepper
 
 			### Initial condition ###
 
-K0 = 2 * pi / (4 * Ld)     # most unstable Eady wavenumber, Km = 2 * pi / (4 * Ld) (see Vallis)
+K0 = 1 / (4 * Ld)          # most unstable Eady wavenumber, Km = 2 * pi / (4 * Ld) (see Vallis)
 E0 = 1e-6                  # average initial energy
 
 end
