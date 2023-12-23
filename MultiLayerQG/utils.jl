@@ -3,7 +3,7 @@
 module Utils
 
 # compile other packages
-using GeophysicalFlows, FFTW, Statistics, Random, CUDA
+using GeophysicalFlows, FFTW, Statistics, Random, CUDA, CUDA_Driver_jll, CUDA_Runtime_jll, GPUCompiler
 
 """
 	monoscale_random(hrms, Ktopo, Lx, nx, dev, T)
@@ -41,7 +41,7 @@ function monoscale_random(hrms, Ktopo, Lx, nx, dev)
 	 c = hrms / sqrt.(mean(h.^2))
 	 h = c .* h
 
-	 return A(h)
+	 return h
 end
 
 

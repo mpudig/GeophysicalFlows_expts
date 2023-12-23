@@ -5,7 +5,7 @@ include("utils.jl")
 include("params.jl")
 
 # compile other packages
-using GeophysicalFlows, FFTW, Statistics, Random, CUDA, Printf, JLD2;
+using GeophysicalFlows, FFTW, Statistics, Random, CUDA, Printf, JLD2, CUDA_Driver_jll, CUDA_Runtime_jll, GPUCompiler;
 
 # local import
 import .Utils
