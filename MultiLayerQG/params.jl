@@ -16,7 +16,7 @@ import .Utils
   	 ### Save path and device ###
 
 # format: kappa_star = 0.1, Ktopo = 25, h_star = 1
-expt_name = "/kappa01_kt25_h1"              
+expt_name = "/kappa01_kt25_h1"
 path_name = "/scratch/mp6191/GeophysicalFlows_expts" * expt_name * "/output" * expt_name * ".jld2"
 
 dev = GPU() # or CPU()

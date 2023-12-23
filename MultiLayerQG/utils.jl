@@ -76,15 +76,16 @@ function set_initial_condition!(prob, E0, K0, Kd)
 	dk = 2 * pi / Lx
 	dl = dk
 	
-	k = reshape( rfftfreq(nx, dk * nx), (nk, 1) )
-	l = reshape( fftfreq(nx, dl * nx), (1, nl) )
+	k = A(reshape( rfftfreq(nx, dk * nx), (nk, 1) ))
+	l = A(reshape( fftfreq(nx, dl * nx), (1, nl) ))
 
 	K2 = @. k^2 + l^2
 	K = @. sqrt(K2)
 
 	# Isotropic Gaussian in wavenumber space about mean, K0, with standard deviation, sigma 
 	sigma = sqrt(2) * dk
-	psihmag = A(exp.(-(K .- K0).^2 ./ (2 * sigma^2)) .* exp.(2 * pi * im .* rand(nk, nl)))
+	phases = 2 * pi * im .* A(rand(nk, nl))
+	psihmag = exp.(-(K .- K0).^2 ./ (2 * sigma^2)) .* exp.(phases)
 	psih = A(zeros(nk, nl, 2) .* im)
 	CUDA.@allowscalar psih[:,:,1] = psihmag
 	CUDA.@allowscalar psih[:,:,2] = -1 .* psihmag
@@ -97,7 +98,7 @@ function set_initial_condition!(prob, E0, K0, Kd)
 	APE = 1 / (2 * Lx^2) * Kd^2 / 4 * sum( abs.(psih[:,:,1] ./ M - psih[:,:,2] ./ M).^2  )
 	E = KE + APE
 	c = sqrt(E0 / E)
-	CUDA.@allowscalar psih = c .* psih
+	psih = @. c * psih
 
 	# Invert psih to get qh, then transform to real space 
 	f0, gp = params.f₀, params.g′
@@ -109,6 +110,7 @@ function set_initial_condition!(prob, E0, K0, Kd)
 	q = A(zeros(nx, nx, 2))
 	CUDA.@allowscalar q[:,:,1] = A(irfft(qh[:,:,1], nx))
 	CUDA.@allowscalar q[:,:,2] = A(irfft(qh[:,:,2], nx))
+
 	MultiLayerQG.set_q!(prob, q)
 end
 end
