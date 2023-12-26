@@ -53,6 +53,7 @@ end
 function set_initial_condition!(prob, E0, K0, Kd)
 	params = prob.params
 	grid = prob.grid
+	vars = prob.vars
 	dev = grid.device
 	T = eltype(grid)
 	A = device_array(dev)
@@ -63,17 +64,17 @@ function set_initial_condition!(prob, E0, K0, Kd)
 
 	nk = Int(nx / 2 + 1)
 	nl = nx
-   
+
 	dk = 2 * pi / Lx
 	dl = dk
-	
+
 	k = reshape( rfftfreq(nx, dk * nx), (nk, 1) )
 	l = reshape( fftfreq(nx, dl * nx), (1, nl) )
 
 	K2 = @. k^2 + l^2
 	K = @. sqrt(K2)
 
-	# Isotropic Gaussian in wavenumber space about mean, K0, with standard deviation, sigma 
+	# Isotropic Gaussian in wavenumber space about mean, K0, with standard deviation, sigma
 	sigma = sqrt(2) * dk
 
 	Random.seed!(4321)
@@ -86,25 +87,29 @@ function set_initial_condition!(prob, E0, K0, Kd)
 	# Calculate KE and APE, and prescribe mean total energy
 	H = params.H
 	V = grid.Lx * grid.Ly * sum(H)
+	f0, gp = params.f₀, params.g′
 	
-	abs²∇𝐮h = vars.uh                     # use vars.uh as scratch variable
-	@. abs²∇𝐮h = grid.Krsq * abs2(psih)
+	abs²∇𝐮h = zeros(nk, nl, 2) .* im
+    abs²∇𝐮h[:,:,1] = K2 .* abs2.(psih[:,:,1])
+    abs²∇𝐮h[:,:,2] = K2 .* abs2.(psih[:,:,2])
 
-	KE = 1 / (2 * V) * (parsevalsum(abs²∇𝐮h[:,:,1], grid) * H[1] + parsevalsum(abs²∇𝐮h[:,:,1], grid) * H[2])
-	APE = 1 / (2 * V) * params.f₀^2 / params.g′ * parsevalsum(abs2.(psih[:,:,1] .- psih[:,:,2]), grid)
-	E = KE + APE
-	c = sqrt(E0 / E)
-	psih = @. c * psih
-	
-	# Invert psih to get qh, then transform qh to real space qh
-	qh = vars.qh
-	pvfromstreamfunction!(qh, psih, params, grid)
+    KE = 1 / (2 * V) * (parsevalsum(abs²∇𝐮h[:,:,1], grid) * H[1] + parsevalsum(abs²∇𝐮h[:,:,1], grid) * H[2])
+    APE = 1 / (2 * V) * f0^2 / gp * parsevalsum(abs2.(psih[:,:,1] .- psih[:,:,2]), grid)
+    E = KE + APE
+    c = sqrt(E0 / E)
+    psih = @. c * psih
 
-	q = vars.q
-	invtransform!(q, qh, params)
+    # Invert psih to get qh, then transform qh to real space qh
+    qh = zeros(nk, nl, 2) .* im
+    qh[:,:,1] = - K2 .* psih[:,:,1] .+ f0^2 / (gp * H[1]) .* (psih[:,:,2] .- psih[:,:,1])
+    qh[:,:,2] = - K2 .* psih[:,:,2] .+ f0^2 / (gp * H[2]) .* (psih[:,:,1] .- psih[:,:,2])
 
-	# Set as initial condition
-	MultiLayerQG.set_q!(prob, A(q))
+    q = zeros(nx, nx, 2)
+    q[:,:,1] = irfft(qh[:,:,1], nx)
+    q[:,:,2] = irfft(qh[:,:,2], nx)
+
+    # Set as initial condition
+    MultiLayerQG.set_q!(prob, A(q))
 end
 
 
@@ -135,17 +140,9 @@ end
   
 function calc_APE(prob)
 		vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
-		nlayers = 2
-		APE = zeros(nlayers-1)
-			
-		@. vars.qh = sol
-		MultiLayerQG.streamfunctionfrompv!(vars.ψh, vars.qh, params, grid)
-			
-		abs²∇𝐮h = vars.uh        # use vars.uh as scratch variable
-		@. abs²∇𝐮h = grid.Krsq * abs2(vars.ψh)
 			
 		V = grid.Lx * grid.Ly * sum(params.H)
-			
+				
 		ψ1h, ψ2h = view(vars.ψh, :, :, 1), view(vars.ψh, :, :, 2)
 			
 		APE = 1 / (2 * V) * params.f₀^2 / params.g′ * parsevalsum(abs2.(ψ1h .- ψ2h), grid)
@@ -157,8 +154,11 @@ end
 function calc_meridiff(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
-	psi_bc = 0.5 .* (vars.ψ[:, :, 1] - vars.ψ[:, :, 2])
-	v_bt = 0.5 .* (vars.v[:, :, 1] + vars.v[:, :, 2])
+	psi1, psi2 = view(vars.ψh, :, :, 1), view(vars.ψh, :, :, 2)
+	v1, v2 = view(vars.v, :, :, 1), view(vars.v, :, :, 2)
+
+	psi_bc = 0.5 .* (psi1 - psi2)
+	v_bt = 0.5 .* (v1 + v2)
 
 	U = params.U[1,1,:]
 	U0 = 0.5 * (U[2] - U[1])
@@ -172,8 +172,10 @@ end
 function calc_meribarovel(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
-	v = vars.v
-	V = sqrt(mean(v.^2))
+	v1, v2 = view(vars.v, :, :, 1), view(vars.v, :, :, 2)
+	v_bt = 0.5 .* (v1 + v2)
+
+	V = sqrt(mean(v_bt.^2))
 		  
 	return V
 end
@@ -182,7 +184,8 @@ end
 function calc_mixlen(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
-	psi_bc = 0.5 .* (vars.ψ[:, :, 1] - vars.ψ[:, :, 2])
+	psi1, psi2 = view(vars.ψh, :, :, 1), view(vars.ψh, :, :, 2)
+	psi_bc = 0.5 .* (psi1 - psi2)
 
 	U = params.U[1,1,:]
 	U0 = 0.5 * (U[2] - U[1])
