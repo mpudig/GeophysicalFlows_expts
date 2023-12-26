@@ -55,7 +55,7 @@ stepper = Params.stepper
 
       ### Step the model forward ###
 
-function simulate!(nsteps, nsubs, grid, prob, out, diags, E)
+function simulate!(nsteps, nsubs, grid, prob, out, diags, KE, APE)
       saveproblem(out)
       sol, clock, params, vars, grid = prob.sol, prob.clock, prob.params, prob.vars, prob.grid
       
@@ -67,7 +67,7 @@ function simulate!(nsteps, nsubs, grid, prob, out, diags, E)
                   cfl = clock.dt * maximum([maximum(vars.u) / grid.dx, maximum(vars.v) / grid.dy])
       
                   log = @sprintf("step: %04d, t: %.1f, cfl: %.3f, KE₁: %.3e, KE₂: %.3e, PE: %.3e, walltime: %.2f min",
-                   clock.step, clock.t, cfl, E.data[E.i][1][1], E.data[E.i][1][2], E.data[E.i][2][1], (time()-startwalltime)/60)
+                   clock.step, clock.t, cfl, KE.data[KE.i][1], KE.data[KE.i][2], APE.data[APE.i][1], (time()-startwalltime)/60)
       
                   println(log)
                   flush(stdout)
@@ -101,15 +101,20 @@ function start!()
       sol, clock, params, vars, grid = prob.sol, prob.clock, prob.params, prob.vars, prob.grid
       x, y = grid.x, grid.y
 
-      E = Diagnostic(MultiLayerQG.energies, prob; nsteps)
-      diags = [E]
+      KE = Diagnostic(Utils.calc_KE, prob; nsteps)
+      APE = Diagnostic(Utils.calc_APE, prob; nsteps)
+      D = Diagnostic(Utils.calc_meridiff, prob; nsteps)
+      V = Diagnostic(Utils.calc_meribarovel, prob; nsteps)
+      Lmix = Diagnostic(Utils.calc_mixlen, prob; nsteps)
+      diags = [KE, APE, D, V, Lmix]
 
       filename = Params.path_name
       if isfile(filename); rm(filename); end
 
-      out = Output(prob, filename, (:q, get_q), (:E, MultiLayerQG.energies))
+      out = Output(prob, filename, (:q, get_q),
+                  (:KE, Utils.calc_KE), (:APE, Utils.calc_APE), (:D, Utils.calc_meridiff), (:V, Utils.calc_meribarovel), (:Lmix, Utils.calc_mixlen))
 
       Utils.set_initial_condition!(prob, Params.E0, Params.K0, Params.Kd)
 
-      simulate!(nsteps, nsubs, grid, prob, out, diags, E)
+      simulate!(nsteps, nsubs, grid, prob, out, diags, KE, APE)
 end
