@@ -5,7 +5,7 @@ include("utils.jl")
 include("params.jl")
 
 # compile other packages
-using GeophysicalFlows, FFTW, Statistics, Random, CUDA, Printf, JLD2, CUDA_Driver_jll, CUDA_Runtime_jll, GPUCompiler;
+using GeophysicalFlows, FFTW, Statistics, Random, CUDA, Printf, JLD2, CUDA_Driver_jll, CUDA_Runtime_jll, GPUCompiler, GPUArrays;
 
 # local import
 import .Utils
@@ -82,14 +82,17 @@ end
       ### Get real space solution ###
 
 function get_q(prob)
-      sol, grid = prob.sol, prob.grid
-      
+      sol, params, vars, grid = prob.sol, prob.params, prob.vars, prob.grid
+
       # We want to save CPU arrays not GPU arrays
-      A = device_array(CPU())
+      A = device_array(GPU())
+      B = device_array(CPU())
 
-      q = A(irfft(prob.sol, grid.nx))
+      q = A(zeros(size(vars.q)))
+      qh = prob.sol
+      MultiLayerQG.invtransform!(q, qh, params)
 
-      return q
+      return B(q)
 end
 
       ### Initialize and then call step forward function ###
@@ -103,16 +106,16 @@ function start!()
 
       KE = Diagnostic(Utils.calc_KE, prob; nsteps)
       APE = Diagnostic(Utils.calc_APE, prob; nsteps)
-      #D = Diagnostic(Utils.calc_meridiff, prob; nsteps)
-      #V = Diagnostic(Utils.calc_meribarovel, prob; nsteps)
-      #Lmix = Diagnostic(Utils.calc_mixlen, prob; nsteps)
-      diags = [KE, APE]#, D, V, Lmix]
+      D = Diagnostic(Utils.calc_meridiff, prob; nsteps)
+      V = Diagnostic(Utils.calc_meribarovel, prob; nsteps)
+      Lmix = Diagnostic(Utils.calc_mixlen, prob; nsteps)
+      diags = [KE, APE, D, V, Lmix]
 
       filename = Params.path_name
       if isfile(filename); rm(filename); end
 
       out = Output(prob, filename, (:q, get_q),
-                  (:KE, Utils.calc_KE), (:APE, Utils.calc_APE))#, (:D, Utils.calc_meridiff), (:V, Utils.calc_meribarovel), (:Lmix, Utils.calc_mixlen))
+                  (:KE, Utils.calc_KE), (:APE, Utils.calc_APE), (:D, Utils.calc_meridiff), (:V, Utils.calc_meribarovel), (:Lmix, Utils.calc_mixlen))
 
       Utils.set_initial_condition!(prob, Params.E0, Params.K0, Params.Kd)
 

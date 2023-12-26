@@ -53,6 +53,7 @@ function convert_to_nc()
     iterations = parse.(Int, keys(file["snapshots/t"]))
     t = [file["snapshots/t/$iteration"] for iteration in iterations]
     KE = [file["snapshots/KE/$iteration"] for iteration in iterations]
+    KE = reduce(hcat, KE)
     APE = [file["snapshots/APE/$iteration"] for iteration in iterations]
     D = [file["snapshots/D/$iteration"] for iteration in iterations]
     V = [file["snapshots/V/$iteration"] for iteration in iterations]
@@ -62,7 +63,7 @@ function convert_to_nc()
     # The mode "c" stands for creating a new file (clobber); the mode "a" stands for opening in write mode
 
     ds = NCDataset("../../output" * expt_name * ".nc", "c")
-    ds = NcDataset("../../output" * expt_name * ".nc", "a")
+    ds = NCDataset("../../output" * expt_name * ".nc", "a")
 
     # Define attributes
 
@@ -120,11 +121,13 @@ function convert_to_nc()
     defVar(ds, "Lmix", Float64, ("t",))
     ds["Lmix"][:] = Lmix
 
-    defVar(ds, "q", Float64, ("x", "y", "lev", "time"))
-    for i in iterations
-        ds["q"][:,:,:,i] = file["snapshots/q/$i"]
+    defVar(ds, "q", Float64, ("x", "y", "lev", "t"))
+    for i in 1:length(iterations)
+        iter = iterations[i]
+        ds["q"][:,:,:,i] = file["snapshots/q/$iter"]
+    end
 
-    # Finally, after all the work is done, we can close the dataset
+    # Finally, after all the work is done, we can close the file and the dataset
+    close(file)
     close(ds)
-
 end

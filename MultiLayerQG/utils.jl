@@ -142,7 +142,7 @@ function calc_APE(prob)
 		vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 			
 		V = grid.Lx * grid.Ly * sum(params.H)
-				
+
 		ψ1h, ψ2h = view(vars.ψh, :, :, 1), view(vars.ψh, :, :, 2)
 			
 		APE = 1 / (2 * V) * params.f₀^2 / params.g′ * parsevalsum(abs2.(ψ1h .- ψ2h), grid)
@@ -154,16 +154,17 @@ end
 function calc_meridiff(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
-	psi1, psi2 = view(vars.ψh, :, :, 1), view(vars.ψh, :, :, 2)
+	psi1, psi2 = view(vars.ψ, :, :, 1), view(vars.ψ, :, :, 2)
 	v1, v2 = view(vars.v, :, :, 1), view(vars.v, :, :, 2)
 
 	psi_bc = 0.5 .* (psi1 - psi2)
 	v_bt = 0.5 .* (v1 + v2)
 
-	U = params.U[1,1,:]
-	U0 = 0.5 * (U[2] - U[1])
+	U1 = view(params.U, 1, 1, 1)
+    U2 = view(params.U, 1, 1, 2)
+    U0 = 0.5 * (U2 - U1)
 
-	D = mean(psi_bc .* v_bt) / U0
+	D = mean(psi_bc .* v_bt ./ U0)
 		  
 	return D
 end
@@ -184,13 +185,14 @@ end
 function calc_mixlen(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
-	psi1, psi2 = view(vars.ψh, :, :, 1), view(vars.ψh, :, :, 2)
+	psi1, psi2 = view(vars.ψ, :, :, 1), view(vars.ψ, :, :, 2)
 	psi_bc = 0.5 .* (psi1 - psi2)
 
-	U = params.U[1,1,:]
-	U0 = 0.5 * (U[2] - U[1])
+	U1 = view(params.U, 1, 1, 1)
+    U2 = view(params.U, 1, 1, 2)
+    U0 = 0.5 * (U2 - U1)
 
-	Lmix = sqrt(mean(psi_bc.^2)) / U0 
+	Lmix = sqrt(mean(psi_bc.^2) ./ U0.^2) 
 	  
 	return Lmix
 end
