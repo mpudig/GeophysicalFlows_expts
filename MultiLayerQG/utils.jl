@@ -67,8 +67,8 @@ function set_initial_condition!(prob, E0, K0, Kd)
 	dk = 2 * pi / Lx
 	dl = dk
 	
-	k = reshape( rfftfreq(nx, dk * nx), (nk, 1) )
-	l = reshape( fftfreq(nx, dl * nx), (1, nl) )
+	k = A(reshape( rfftfreq(nx, dk * nx), (nk, 1) ))
+	l = A(reshape( fftfreq(nx, dl * nx), (1, nl) ))
 
 	K2 = @. k^2 + l^2
 	K = @. sqrt(K2)
@@ -77,34 +77,35 @@ function set_initial_condition!(prob, E0, K0, Kd)
 	sigma = sqrt(2) * dk
 
 	Random.seed!(4321)
-	psihmag = exp.(-(K .- K0).^2 ./ (2 * sigma^2)) .* exp.(2 * pi * im .* rand(nk, nl))
+	phases = 2 * pi * im .* A(rand(nk, nl))
+	psihmag = exp.(-(K .- K0).^2 ./ (2 * sigma^2)) .* exp.(phases)
 
-	psih = zeros(nk, nl, 2) .* im
-	psih[:,:,1] = psihmag
-	psih[:,:,2] = -1 .* psihmag
+	psih = A(zeros(nk, nl, 2) .* im)
+	CUDA.@allowscalar psih[:,:,1] = psihmag
+	CUDA.@allowscalar psih[:,:,2] = -1 .* psihmag
 
-	# Calculate KE and APE, and prescribe mean total energy
+	# Calculate average energy and scaling factor so that average energy is prescribed
+	M = nx^2
 	H = params.H
-	V = grid.Lx * grid.Ly * sum(H)
-	
-	abs²∇𝐮h = vars.uh                     # use vars.uh as scratch variable
-	@. abs²∇𝐮h = grid.Krsq * abs2(psih)
 
-	KE = 1 / (2 * V) * (parsevalsum(abs²∇𝐮h[:,:,1], grid) * H[1] + parsevalsum(abs²∇𝐮h[:,:,1], grid) * H[2])
-	APE = 1 / (2 * V) * params.f₀^2 / params.g′ * parsevalsum(abs2.(psih[:,:,1] .- psih[:,:,2]), grid)
+	KE = 1 / (2 * Lx^2 * sum(H)) * sum(H[1] .* K2 .* abs.(psih[:,:,1] ./ M).^2) + sum((H[2] .* K2 .* abs.(psih[:,:,2] ./ M).^2))
+	APE = 1 / (2 * Lx^2) * Kd^2 / 4 * sum(abs.(psih[:,:,1] ./ M - psih[:,:,2] ./ M).^2  )
 	E = KE + APE
 	c = sqrt(E0 / E)
 	psih = @. c * psih
-	
-	# Invert psih to get qh, then transform qh to real space qh
-	qh = vars.qh
-	pvfromstreamfunction!(qh, psih, params, grid)
 
-	q = vars.q
-	invtransform!(q, qh, params)
+	# Invert psih to get qh, then transform to real space 
+	f0, gp = params.f₀, params.g′
 
-	# Set as initial condition
-	MultiLayerQG.set_q!(prob, A(q))
+	qh = A(zeros(nk, nl, 2) .* im)
+	CUDA.@allowscalar qh[:,:,1] = - K .* psih[:,:,1] .+ f0^2 / (gp * H[1]) .* (psih[:,:,2] .- psih[:,:,1])
+	CUDA.@allowscalar qh[:,:,2] = - K .* psih[:,:,2] .+ f0^2 / (gp * H[2]) .* (psih[:,:,1] .- psih[:,:,2])
+
+	q = A(zeros(nx, nx, 2))
+	CUDA.@allowscalar q[:,:,1] = A(irfft(qh[:,:,1], nx))
+	CUDA.@allowscalar q[:,:,2] = A(irfft(qh[:,:,2], nx))
+
+	MultiLayerQG.set_q!(prob, q)
 end
 
 
