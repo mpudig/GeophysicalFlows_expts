@@ -57,6 +57,7 @@ stepper = Params.stepper
 
 function simulate!(nsteps, nsubs, grid, prob, out, diags, KE, APE)
       saveproblem(out)
+      saveoutput(out)
       sol, clock, params, vars, grid = prob.sol, prob.clock, prob.params, prob.vars, prob.grid
       
       startwalltime = time()

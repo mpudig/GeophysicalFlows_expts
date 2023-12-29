@@ -190,7 +190,7 @@ function calc_mixlen(prob)
 
 	U1 = view(params.U, 1, 1, 1)
     U2 = view(params.U, 1, 1, 2)
-    U0 = 0.5 * (U2 - U1)
+    U0 = 0.5 * (U1 - U2)
 
 	Lmix = sqrt(mean(psi_bc.^2) ./ U0.^2) 
 	  
