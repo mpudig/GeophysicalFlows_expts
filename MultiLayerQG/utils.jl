@@ -162,7 +162,7 @@ function calc_meridiff(prob)
 
 	U1 = view(params.U, 1, 1, 1)
     U2 = view(params.U, 1, 1, 2)
-    U0 = 0.5 * (U2 - U1)
+    U0 = 0.5 * (U1 - U2)
 
 	D = mean(psi_bc .* v_bt ./ U0)
 		  

@@ -1,14 +1,9 @@
 using NCDatasets, JLD2
 
-# include and import parameters
-
-include("params.jl")
-import .Params
-
 function convert_to_nc()
     # Get path and open jld2 file
 
-    expt_name = Params.expt_name             
+    expt_name = "/kappa01_kt25_h1"           
     file_path = "../../output" * expt_name * ".jld2"
     file = jldopen(file_path)
 
@@ -130,4 +125,7 @@ function convert_to_nc()
     # Finally, after all the work is done, we can close the file and the dataset
     close(file)
     close(ds)
+
+    # Delete jld2 file
+    rm(file_path)
 end
