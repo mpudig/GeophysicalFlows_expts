@@ -59,26 +59,8 @@ function convert_to_nc()
     V = [file["snapshots/V/$iteration"] for iteration in iterations]
     Lmix = [file["snapshots/Lmix/$iteration"] for iteration in iterations]
 
-    # This creates a new NetCDF file
-    # The mode "c" stands for creating a new file (clobber); the mode "a" stands for opening in write mode
-
-    ds = NCDataset("../../output" * expt_name * ".nc", "c")
+    # Open already created .nc file in write mode 
     ds = NCDataset("../../output" * expt_name * ".nc", "a")
-
-    # Define attributes
-
-    ds.attrib["title"] = expt_name
-    ds.attrib["dt"] = dt
-    ds.attrib["f0"] = f0
-    ds.attrib["beta"] = beta
-    ds.attrib["kappa"] = kappa
-    ds.attrib["rho1"] = rho1
-    ds.attrib["rho2"] = rho2
-    ds.attrib["gp"] = gp
-    ds.attrib["U1"] = U1
-    ds.attrib["U2"] = U2
-    ds.attrib["H"] = H0
-    ds.attrib["delta"] = delta
 
     # Define the dimensions, with names and sizes
 

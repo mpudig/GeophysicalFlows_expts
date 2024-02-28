@@ -5,7 +5,7 @@ include("utils.jl")
 include("params.jl")
 
 # compile other packages
-using GeophysicalFlows, FFTW, Statistics, Random, CUDA, Printf, JLD2, CUDA_Driver_jll, CUDA_Runtime_jll, GPUCompiler, GPUArrays;
+using GeophysicalFlows, FFTW, Statistics, Random, CUDA, Printf, JLD2, CUDA_Driver_jll, CUDA_Runtime_jll, GPUCompiler, GPUArrays, NCDatasets;
 
 # local import
 import .Utils
@@ -118,7 +118,13 @@ function start!()
       out = Output(prob, filename, (:q, get_q),
                   (:KE, Utils.calc_KE), (:APE, Utils.calc_APE), (:D, Utils.calc_meridiff), (:V, Utils.calc_meribarovel), (:Lmix, Utils.calc_mixlen))
 
+      # If starting from t = 0:
       Utils.set_initial_condition!(prob, Params.E0, Params.K0, Params.Kd)
+
+      # If starting as a restart:
+      ds = NCDataset("../../output" * Params.expt_name * ".nc", "r")
+      qi = ds["q"][:, :, :, end]
+      MultiLayerQG.set_q!(prob, A(qi))
 
       simulate!(nsteps, nsubs, grid, prob, out, diags, KE, APE)
 end
