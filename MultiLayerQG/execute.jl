@@ -116,15 +116,24 @@ function start!()
       if isfile(filename); rm(filename); end
 
       out = Output(prob, filename, (:q, get_q),
-                  (:KE, Utils.calc_KE), (:APE, Utils.calc_APE), (:D, Utils.calc_meridiff), (:V, Utils.calc_meribarovel), (:Lmix, Utils.calc_mixlen))
+                  (:KE, Utils.calc_KE), (:APE, Utils.calc_APE),
+                  (:D, Utils.calc_meridiff), (:V, Utils.calc_meribarovel), (:Lmix, Utils.calc_mixlen),
+                  (:KEFlux1, Utils.calc_KEFlux_1),
+                  (:APEFlux1, Utils.calc_PEFlux_1),
+                  (:ShearFlux, Utils.calc_ShearFlux_1),
+                  (:KEFlux2, Utils.calc_KEFlux_2),
+                  (:APEFlux2, Utils.calc_PEFlux_2),
+                  (:TopoFlux2, Utils.calc_TopoFlux_2),
+                  (:DragFlux2, Utils.calc_DragFlux_2)
+                  )
 
       # If starting from t = 0:
       Utils.set_initial_condition!(prob, Params.E0, Params.K0, Params.Kd)
 
       # If starting as a restart:
-      ds = NCDataset("../../output" * Params.expt_name * ".nc", "r")
-      qi = ds["q"][:, :, :, end]
-      MultiLayerQG.set_q!(prob, A(qi))
+      #ds = NCDataset("../../output" * Params.expt_name * ".nc", "r")
+      #qi = ds["q"][:, :, :, end]
+      #MultiLayerQG.set_q!(prob, A(qi))
 
       simulate!(nsteps, nsubs, grid, prob, out, diags, KE, APE)
 end

@@ -12,81 +12,68 @@ function convert_to_nc()
     file_path = "../../output" * expt_name * ".jld2"
     file = jldopen(file_path)
 
-    # Get necessary key information from file
-    # Clock
-
-    dt = file["clock/dt"]
-
-    # Grid
-
-    nx = file["grid/nx"]
-    ny = file["grid/ny"]
-    Lx = file["grid/Lx"]
-    Ly = file["grid/Ly"]
-    x = file["grid/x"]
-    x = -x[1] .+ x
-    y = file["grid/y"]
-    y = -y[1] .+ y
-
-    # Params
-
-    f0 = file["params/f₀"]
-    beta = file["params/β"]
-    rho = file["params/ρ"]
-    rho1 = rho[1]
-    rho2 = rho[2]
-    U = file["params/U"][1,1,:]
-    U1 = U[1]
-    U2 = U[2]
-    H = file["params/H"]
-    delta = H[1] / H[2]
-    H0 = sum(H)
-    kappa = file["params/μ"]
-    gp = file["params/g′"]
-    eta = file["params/eta"]
-    htop = H[1] / f0 .* eta
-    Qx = file["params/Qx"]
-    Qy = file["params/Qy"]
-
-    # Time and diagnostics
-
-    iterations = parse.(Int, keys(file["snapshots/t"]))
-    t = [file["snapshots/t/$iteration"] for iteration in iterations]
-    KE = [file["snapshots/KE/$iteration"] for iteration in iterations]
-    KE = reduce(hcat, KE)
-    APE = [file["snapshots/APE/$iteration"] for iteration in iterations]
-    D = [file["snapshots/D/$iteration"] for iteration in iterations]
-    V = [file["snapshots/V/$iteration"] for iteration in iterations]
-    Lmix = [file["snapshots/Lmix/$iteration"] for iteration in iterations]
-
     # Open already created .nc file in write mode 
     ds = NCDataset("../../output" * expt_name * ".nc", "a")
 
-    # Define the dimensions, with names and sizes
+    # Extract fields from original nc file
+    q_nc = ds["q"]
+    KE_nc = ds["KE"]
+    APE_nc = ds["APE"]
+    D_nc = ds["D"]
+    V_nc = ds["V"]
+    Lmix_nc = ds["Lmix"]
 
-    defDim(ds, "x", size(x)[1])
-    defDim(ds, "y", size(y)[1])
-    defDim(ds, "lev", 2)
-    defDim(ds, "t", size(t)[1])
+    # Make new time axis for restarts
+    iterations = parse.(Int, keys(file["snapshots/t"]))[2:end] # don't take first snapshot as this is same as in file that was restarted from
+    t_restart = [file["snapshots/t/$iteration"] for iteration in iterations]
+    t_nc = ds["t"][:]
+    t_nc_id = length(t_nc)
+    t_restart = t_restart .+ last(t_nc)
+    t = [t_nc; t_restart]
 
-    # Define coordinates (i.e., variables with the same name as dimensions)
+    # Diagnostics from restart
+    KE_jld2 = [file["snapshots/KE/$iteration"] for iteration in iterations]
+    KE_jld2 = reduce(hcat, KE)
+    APE_jld2 = [file["snapshots/APE/$iteration"] for iteration in iterations]
+    D_jld2 = [file["snapshots/D/$iteration"] for iteration in iterations]
+    V_jld2 = [file["snapshots/V/$iteration"] for iteration in iterations]
+    Lmix_jld2 = [file["snapshots/Lmix/$iteration"] for iteration in iterations]
 
-    defVar(ds, "x", Float64, ("x",))
-    ds["x"][:] = x
+    KEFlux1_jld2 = [file["snapshots/KEFlux1/$iteration"] for iteration in iterations]
+    PEFlux1_jld2 = [file["snapshots/PEFlux1/$iteration"] for iteration in iterations]
+    ShearFlux1_jld2 = [file["snapshots/ShearFlux1/$iteration"] for iteration in iterations]
 
-    defVar(ds, "y", Float64, ("y",))
-    ds["y"][:] = y
+    KEFlux2_jld2 = [file["snapshots/KEFlux2/$iteration"] for iteration in iterations]
+    PEFlux2_jld2 = [file["snapshots/PEFlux2/$iteration"] for iteration in iterations]
+    TopoFlux2_jld2 = [file["snapshots/TopoFlux2/$iteration"] for iteration in iterations]
+    DragFlux2_jld2 = [file["snapshots/DragFlux2/$iteration"] for iteration in iterations]
 
-    defVar(ds, "lev", Int64, ("lev",))
-    ds["lev"][:] = [1, 2]
+    # Update time coordinates (i.e., variables with the same name as dimensions)
 
     defVar(ds, "t", Float64, ("t",))
     ds["t"][:] = t
 
-    # Define variables: fields, diagnostics, snapshots
+    # Make isotropic wavenumber grid
+    nx = file["grid/nx"]
+    Lx = file["grid/Lx"]
+    nk = Int(nx / 2 + 1)
+	nl = nx
+	dk = 2 * pi / Lx
+	dl = dk
+    k = reshape( rfftfreq(nx, dk * nx), (nk, 1) )
+	l = reshape( fftfreq(nx, dl * nx), (1, nl) )
+    kmax = maximum(k)
+	lmax = maximum(abs.(l))
+	Kmax = sqrt(kmax^2 + lmax^2)
+	Kmin = 0.
+	dK = sqrt(dk^2 + dl^2)
+    K = Kmin:dK:Kmax-1
 
-    defVar(ds, "htop", Float64, ("x", "y"))
-    ds["htop"][:,:] = htop
+    defVar(ds, "K", Float64, ("K",))
+    ds["K"][:] = K
+
+    # Define variables: fields, diagnostics, snapshots
+    # Append new restart fields to old fields
 
     defVar(ds, "KE", Float64, ("lev", "t"))
     ds["KE"][:,:] = KE
@@ -108,6 +95,28 @@ function convert_to_nc()
         iter = iterations[i]
         ds["q"][:,:,:,i] = file["snapshots/q/$iter"]
     end
+
+    # Energy budget diagnostics
+    defVar(ds, "KEFlux1", Float64, ("K", "t"))
+    ds["KEFlux1"][:,:] = KEFlux1
+
+    defVar(ds, "PEFlux1", Float64, ("K", "t"))
+    ds["PEFlux1"][:,:] = PEFlux1
+
+    defVar(ds, "ShearFlux1", Float64, ("K", "t"))
+    ds["ShearFlux1"][:,:] = ShearFlux1
+
+    defVar(ds, "KEFlux2", Float64, ("K", "t"))
+    ds["KEFlux2"][:,:] = KEFlux2
+
+    defVar(ds, "PEFlux2", Float64, ("K", "t"))
+    ds["PEFlux2"][:,:] = PEFlux2
+
+    defVar(ds, "TopoFlux2", Float64, ("K", "t"))
+    ds["TopoFlux2"][:,:] = TopoFlux2
+
+    defVar(ds, "DragFlux2", Float64, ("K", "t"))
+    ds["DragFlux2"][:,:] = DragFlux2
 
     # Finally, after all the work is done, we can close the file and the dataset
     close(file)
