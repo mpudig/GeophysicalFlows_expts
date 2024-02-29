@@ -22,6 +22,13 @@ function convert_to_nc()
     D_nc = ds["D"]
     V_nc = ds["V"]
     Lmix_nc = ds["Lmix"]
+    #KEFlux1_nc = ds["KEFlux1"]
+    #APEFlux1_nc = ds["APEFlux1"]
+    #ShearFlux1_nc = ds["ShearFlux1"]
+    #KEFlux2_nc = ds["KEFlux2"]
+    #APEFlux2_nc = ds["APEFlux2"]
+    #TopoFlux2_nc = ds["TopoFlux2"]
+    #DragFlux2_nc = ds["DragFlux2"]
 
     # Make new time axis for restarts
     iterations = parse.(Int, keys(file["snapshots/t"]))[2:end] # don't take first snapshot as this is same as in file that was restarted from
@@ -40,11 +47,11 @@ function convert_to_nc()
     Lmix_jld2 = [file["snapshots/Lmix/$iteration"] for iteration in iterations]
 
     KEFlux1_jld2 = [file["snapshots/KEFlux1/$iteration"] for iteration in iterations]
-    PEFlux1_jld2 = [file["snapshots/PEFlux1/$iteration"] for iteration in iterations]
+    APEFlux1_jld2 = [file["snapshots/APEFlux1/$iteration"] for iteration in iterations]
     ShearFlux1_jld2 = [file["snapshots/ShearFlux1/$iteration"] for iteration in iterations]
 
     KEFlux2_jld2 = [file["snapshots/KEFlux2/$iteration"] for iteration in iterations]
-    PEFlux2_jld2 = [file["snapshots/PEFlux2/$iteration"] for iteration in iterations]
+    APEFlux2_jld2 = [file["snapshots/APEFlux2/$iteration"] for iteration in iterations]
     TopoFlux2_jld2 = [file["snapshots/TopoFlux2/$iteration"] for iteration in iterations]
     DragFlux2_jld2 = [file["snapshots/DragFlux2/$iteration"] for iteration in iterations]
 
@@ -53,7 +60,7 @@ function convert_to_nc()
     defVar(ds, "t", Float64, ("t",))
     ds["t"][:] = t
 
-    # Make isotropic wavenumber grid
+    # Make isotropic wavenumber grid if not already made
     nx = file["grid/nx"]
     Lx = file["grid/Lx"]
     nk = Int(nx / 2 + 1)

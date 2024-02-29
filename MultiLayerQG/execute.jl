@@ -5,7 +5,7 @@ include("utils.jl")
 include("params.jl")
 
 # compile other packages
-using GeophysicalFlows, FFTW, Statistics, Random, CUDA, Printf, JLD2, CUDA_Driver_jll, CUDA_Runtime_jll, GPUCompiler, GPUArrays, NCDatasets;
+using GeophysicalFlows, FFTW, Statistics, Random, Printf, JLD2, CUDA, CUDA_Driver_jll, CUDA_Runtime_jll, GPUCompiler, GPUArrays, NCDatasets;
 
 # local import
 import .Utils
@@ -110,7 +110,15 @@ function start!()
       D = Diagnostic(Utils.calc_meridiff, prob; nsteps)
       V = Diagnostic(Utils.calc_meribarovel, prob; nsteps)
       Lmix = Diagnostic(Utils.calc_mixlen, prob; nsteps)
-      diags = [KE, APE, D, V, Lmix]
+
+      KEFlux1 = Diagnostic(Utils.calc_KEFlux_1, prob; nsteps)
+      APEFlux1 = Diagnostic(Utils.calc_APEFlux_1, prob; nsteps)
+      ShearFlux1 = Diagnostic(Utils.calc_ShearFlux_1, prob; nsteps)
+      KEFlux2 = Diagnostic(Utils.calc_KEFlux_2, prob; nsteps)
+      APEFlux2 = Diagnostic(Utils.calc_APEFlux_2, prob; nsteps)
+      TopoFlux2 = Diagnostic(Utils.calc_TopoFlux_2, prob; nsteps)
+      DragFlux2 = Diagnostic(Utils.calc_DragFlux_2, prob; nsteps)
+      diags = [KE, APE, D, V, Lmix, KEFlux1, APEFlux1, ShearFlux1, KEFlux2, APEFlux2, TopoFlux2, DragFlux2]
 
       filename = Params.path_name
       if isfile(filename); rm(filename); end
@@ -119,10 +127,10 @@ function start!()
                   (:KE, Utils.calc_KE), (:APE, Utils.calc_APE),
                   (:D, Utils.calc_meridiff), (:V, Utils.calc_meribarovel), (:Lmix, Utils.calc_mixlen),
                   (:KEFlux1, Utils.calc_KEFlux_1),
-                  (:APEFlux1, Utils.calc_PEFlux_1),
-                  (:ShearFlux, Utils.calc_ShearFlux_1),
+                  (:APEFlux1, Utils.calc_APEFlux_1),
+                  (:ShearFlux1, Utils.calc_ShearFlux_1),
                   (:KEFlux2, Utils.calc_KEFlux_2),
-                  (:APEFlux2, Utils.calc_PEFlux_2),
+                  (:APEFlux2, Utils.calc_APEFlux_2),
                   (:TopoFlux2, Utils.calc_TopoFlux_2),
                   (:DragFlux2, Utils.calc_DragFlux_2)
                   )

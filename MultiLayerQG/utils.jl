@@ -150,7 +150,6 @@ function calc_APE(prob)
 		return APE
 end
 
-
 function calc_meridiff(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
@@ -169,7 +168,6 @@ function calc_meridiff(prob)
 	return D
 end
 
-
 function calc_meribarovel(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
@@ -180,7 +178,6 @@ function calc_meribarovel(prob)
 		  
 	return V
 end
-
 
 function calc_mixlen(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
@@ -197,8 +194,7 @@ function calc_mixlen(prob)
 	return Lmix
 end
 
-
-function calc_KEflux_1(prob):
+function calc_KEFlux_1(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
 	nx = grid.nx
@@ -222,6 +218,7 @@ function calc_KEflux_1(prob):
 	dKr = sqrt(dkr^2 + dl^2)
  
 	K = Kmin:dKr:Kmax-1
+	K_id = lastindex(K)
 	
 	# Get stream functions and vorticity
 	psih = view(vars.ψh, :, :, :)
@@ -231,9 +228,9 @@ function calc_KEflux_1(prob):
 	invtransform!(zeta, -grid.Krsq .* vars.ψh, params)
 	
 	# Loop over filters and calculate KE flux
-	KEflux = zeros(length(K))
+	KEflux = zeros(K_id)
 
-	for j = 1:length(K)
+	for j = 1:K_id
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
@@ -278,13 +275,12 @@ function calc_KEflux_1(prob):
 		vzeta_dy_1 = view(vzeta_dy, :, :, 1)
 
 		view(KEflux, j) .= mean(psi_hpf_1 .* uzeta_dx_1 + psi_hpf_1 .* vzeta_dy_1)
-
 	end
-  end
+
+	return KEflux
 end
 
-
-function calc_PEflux_1(prob):
+function calc_APEFlux_1(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
 	nx = grid.nx
@@ -363,12 +359,12 @@ function calc_PEflux_1(prob):
 		vpsi2_dy_1 = view(vpsi2_dy, :, :, 1)
 
 		view(PEflux, j) .= mean(0.5 .* psi_hpf_1 .* upsi2_dx_1 + 0.5 .* psi_hpf_1 .* vpsi2_dy_1)
-
 	end
+
+	return PEflux
 end
 
-
-function calc_ShearFlux_1(prob):
+function calc_ShearFlux_1(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
 	nx = grid.nx
@@ -423,16 +419,12 @@ function calc_ShearFlux_1(prob):
 
 		# Calculate flux
 		view(ShearFlux, j) .= mean(psi_hpf_1 .* psi_hpf_dx_2)
-
 	end
 
-
-
-
+	return ShearFlux
 end
 
-
-function calc_KEflux_2(prob):
+function calc_KEFlux_2(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
 	nx = grid.nx
@@ -512,12 +504,12 @@ function calc_KEflux_2(prob):
 		vzeta_dy_2 = view(vzeta_dy, :, :, 2)
 
 		view(KEflux, j) .= mean(psi_hpf_2 .* uzeta_dx_2 + psi_hpf_2 .* vzeta_dy_2)
-
 	end
-  end
+
+	return KEflux
 end
 
-function calc_PEflux_2(prob):
+function calc_PEFlux_2(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
 	nx = grid.nx
@@ -597,9 +589,11 @@ function calc_PEflux_2(prob):
 
 		view(PEflux, j) .= mean(0.5 .* psi_hpf_2 .* upsi1_dx_2 + 0.5 .* psi_hpf_2 .* vpsi1_dy_2)
 	end
+
+	return PEflux
 end
 
-function calc_TopoFlux_2(prob):
+function calc_TopoFlux_2(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
 	nx = grid.nx
@@ -682,10 +676,11 @@ function calc_TopoFlux_2(prob):
 
 		view(TopoFlux, j) .= mean(2 .* psi_hpf_2 .* uhtop_dx_2 + 2 .* psi_hpf_2 .* vhtop_dy_2)
 	end
-  end
+
+	return TopoFlux
 end
 
-function calc_DragFlux_2(prob):
+function calc_DragFlux_2(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
 	nx = grid.nx
@@ -733,14 +728,14 @@ function calc_DragFlux_2(prob):
 		invtransform!(v_hpf, vh_hpf, params)
 
 		# Create views of only lower layer fields
-		u_hpf_2 = view(u_hpf_2, :, :, 2)
-		v_hpf_2 = view(v_hpf_2, :, :, 2)
+		u_hpf_2 = view(u_hpf, :, :, 2)
+		v_hpf_2 = view(v_hpf, :, :, 2)
 
 		# Calculate drag flux
 		view(DragFlux, j) .= mean(-2 .* u_hpf.^2 - 2 .* v_hpf.^2)
-
 	end
-  end
+
+	return DragFlux
 end
 
 end
