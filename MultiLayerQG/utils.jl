@@ -304,6 +304,7 @@ function calc_APEFlux_1(prob)
 	dKr = sqrt(dkr^2 + dl^2)
  
 	K = Kmin:dKr:Kmax-1
+	K_id = lastindex(K)
 	
 	# Get stream functions and velocity
 	psih = view(vars.ψh, :, :, :)
@@ -312,9 +313,9 @@ function calc_APEFlux_1(prob)
 	psi2 = view(vars.ψ, :, :, 2)
 	
 	# Loop over filters and calculate PE flux
-	PEflux = zeros(length(K))
+	PEflux = zeros(K_id)
 
-	for j = 1:length(K)
+	for j = 1:K_id
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
@@ -388,15 +389,16 @@ function calc_ShearFlux_1(prob)
 	dKr = sqrt(dkr^2 + dl^2)
  
 	K = Kmin:dKr:Kmax-1
+	K_id = lastindex(K)
 
 	# Get stream functions and velocity
 	psih = view(vars.ψh, :, :, :)
 	psi2 = view(vars.ψ, :, :, 2)
 	
 	# Loop over filters and calculate shear forcing flux
-	ShearFlux = zeros(length(K))
+	ShearFlux = zeros(K_id)
 
-	for j = 1:length(K)
+	for j = 1:K_id
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
@@ -448,6 +450,7 @@ function calc_KEFlux_2(prob)
 	dKr = sqrt(dkr^2 + dl^2)
  
 	K = Kmin:dKr:Kmax-1
+	K_id = lastindex(K)
 	
 	# Get stream functions and vorticity
 	psih = view(vars.ψh, :, :, :)
@@ -457,9 +460,9 @@ function calc_KEFlux_2(prob)
 	invtransform!(zeta, -grid.Krsq .* vars.ψh, params)
 	
 	# Loop over filters and calculate KE flux
-	KEflux = zeros(length(K))
+	KEflux = zeros(K_id)
 
-	for j = 1:length(K)
+	for j = 1:K_id
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
@@ -533,6 +536,7 @@ function calc_PEFlux_2(prob)
 	dKr = sqrt(dkr^2 + dl^2)
  
 	K = Kmin:dKr:Kmax-1
+	K_id = lastindex(K)
 	
 	# Get stream functions and velocity
 	psih = view(vars.ψh, :, :, :)
@@ -541,9 +545,9 @@ function calc_PEFlux_2(prob)
 	psi1 = view(vars.ψ, :, :, 1)
 	
 	# Loop over filters and calculate PE flux
-	PEflux = zeros(length(K))
+	PEflux = zeros(K_id)
 
-	for j = 1:length(K)
+	for j = 1:K_id
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
@@ -617,6 +621,7 @@ function calc_TopoFlux_2(prob)
 	dKr = sqrt(dkr^2 + dl^2)
  
 	K = Kmin:dKr:Kmax-1
+	K_id = lastindex(K)
 	
 	# Get stream functions and topography
 	psih = view(vars.ψh, :, :, :)
@@ -628,9 +633,9 @@ function calc_TopoFlux_2(prob)
 	htop = H0 / f0 .* params.eta
 	
 	# Loop over filters and calculate topographic flux
-	TopoFlux = zeros(length(K))
+	TopoFlux = zeros(K_id)
 
-	for j = 1:length(K)
+	for j = 1:K_id
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
@@ -704,15 +709,16 @@ function calc_DragFlux_2(prob)
 	dKr = sqrt(dkr^2 + dl^2)
  
 	K = Kmin:dKr:Kmax-1
+	K_id = lastindex(K)
 	
 	# Get velocities
 	uh = view(vars.uh, :, :, :)
 	vh = view(vars.vh, :, :, :)
 	
 	# Loop over filters and calculate drag flux
-	DragFlux = zeros(length(K))
+	DragFlux = zeros(K_id)
 
-	for j = 1:length(K)
+	for j = 1:K_id
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
