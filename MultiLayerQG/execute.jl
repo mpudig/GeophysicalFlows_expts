@@ -104,6 +104,7 @@ function start!()
 
       sol, clock, params, vars, grid = prob.sol, prob.clock, prob.params, prob.vars, prob.grid
       x, y = grid.x, grid.y
+      A = device_array(GPU())
 
       KE = Diagnostic(Utils.calc_KE, prob; nsteps)
       APE = Diagnostic(Utils.calc_APE, prob; nsteps)
@@ -118,6 +119,7 @@ function start!()
       APEFlux2 = Diagnostic(Utils.calc_APEFlux_2, prob; nsteps)
       TopoFlux2 = Diagnostic(Utils.calc_TopoFlux_2, prob; nsteps)
       DragFlux2 = Diagnostic(Utils.calc_DragFlux_2, prob; nsteps)
+
       diags = [KE, APE, D, V, Lmix, KEFlux1, APEFlux1, ShearFlux1, KEFlux2, APEFlux2, TopoFlux2, DragFlux2]
 
       filename = Params.path_name
@@ -142,6 +144,7 @@ function start!()
       #ds = NCDataset("../../output" * Params.expt_name * ".nc", "r")
       #qi = ds["q"][:, :, :, end]
       #MultiLayerQG.set_q!(prob, A(qi))
+      #close(ds)
 
       simulate!(nsteps, nsubs, grid, prob, out, diags, KE, APE)
 end
