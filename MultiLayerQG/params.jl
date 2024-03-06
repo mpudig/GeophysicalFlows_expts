@@ -64,10 +64,11 @@ kappa = 2 * U0 / Ld * kappa_star	             # linear Ekman drag, the factor of
 
       	   ### Topography ###
 	   
-Ktopo = 25 * (2 * pi / Lx)							   # topographic wavenumber
-hrms = h_star * U0 * H0 * Ktopo / f0                   # rms topographic height 
-h = Utils.monoscale_random(hrms, Ktopo, Lx, nx, dev)   # random monoscale topography
-eta = f0 / H2 .* h                                     # bottom layer topographic PV
+Ktopo = 25 * (2 * pi / Lx)							        # topographic wavenumber
+hrms = h_star * U0 * H0 * Ktopo / f0                        # rms topographic height 
+h = Utils.monoscale_random(hrms, Ktopo, Lx, nx, dev)        # random monoscale topography
+#h = Utils.goff_jordan_iso(h_star, f0, U0, H0, Lx, nx, dev) # random Goff Jordan topography
+eta = f0 / H2 .* h                                          # bottom layer topographic PV
 
 
 
