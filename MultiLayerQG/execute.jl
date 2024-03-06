@@ -5,7 +5,7 @@ include("utils.jl")
 include("params.jl")
 
 # compile other packages
-using GeophysicalFlows, FFTW, Statistics, Random, Printf, JLD2, CUDA, CUDA_Driver_jll, CUDA_Runtime_jll, GPUCompiler, GPUArrays, NCDatasets;
+using GeophysicalFlows, FFTW, Statistics, Random, Printf, JLD2, NCDatasets, CUDA, CUDA_Driver_jll, CUDA_Runtime_jll, GPUCompiler, GPUArrays, NCDatasets;
 
 # local import
 import .Utils
@@ -104,7 +104,7 @@ function start!()
 
       sol, clock, params, vars, grid = prob.sol, prob.clock, prob.params, prob.vars, prob.grid
       x, y = grid.x, grid.y
-      A = device_array(GPU())
+      A = device_array(grid.device)
 
       KE = Diagnostic(Utils.calc_KE, prob; nsteps)
       APE = Diagnostic(Utils.calc_APE, prob; nsteps)

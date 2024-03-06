@@ -42,6 +42,52 @@ function monoscale_random(hrms, Ktopo, Lx, nx, dev)
 	 return h
 end
 
+"""
+	goff_jordan_iso(hrms, Ktopo, Lx, nx, dev, T)
+
+Returns a 2D, isotropic topography field defined by the Goff Jordan spectrum with random phases. 
+"""
+
+function goff_jordan_iso(hrms, Ktopo, Lx, nx, dev)
+
+	 # Wavenumber grid
+	 nk = Int(nx / 2 + 1)
+	 nl = nx
+	
+	 dk = 2 * pi / Lx
+	 dl = dk
+	 
+	 k = reshape( rfftfreq(nx, dk * nx), (nk, 1) )
+	 l = reshape( fftfreq(nx, dl * nx), (1, nl) )
+
+	 K = @. sqrt(k^2 + l^2)
+
+	 # Goff Jordan spectrum assuming isotropy
+	 mu = 3.5
+	 k0 = 1.8e-4
+	 l0 = 1.8e-4
+
+	 Random.seed!(1234)
+	 hspec =  2 * pi * hrms^2 * (mu - 2) / (k0 * l0) .* (1 + (kk ./ k0).^2 + (ll ./ l0).^2)^(-mu / 2)
+	 hh = hspec .* exp.(2 * pi * im .* rand(nk, nl))
+
+	 # Recover h from hh
+	 h = irfft(hh, nx)
+
+	 c = hrms / sqrt.(mean(h.^2))
+	 h = c .* h
+
+	 return h
+end
+
+
+"""
+	set_initial_condition!(prob, grid, K0, E0)
+
+	Sets the initial condition of MultiLayerQG to be a random q(x,y) field with baroclinic structure
+	and with energy localized in spectral space about K = K0 and with total kinetic energy equal to E0
+"""
+
 
 """
 	set_initial_condition!(prob, grid, K0, E0)
@@ -512,7 +558,7 @@ function calc_KEFlux_2(prob)
 	return KEflux
 end
 
-function calc_PEFlux_2(prob)
+function calc_APEFlux_2(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
 	nx = grid.nx
