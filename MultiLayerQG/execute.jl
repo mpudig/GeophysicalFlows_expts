@@ -112,30 +112,30 @@ function start!()
       V = Diagnostic(Utils.calc_meribarovel, prob; nsteps)
       Lmix = Diagnostic(Utils.calc_mixlen, prob; nsteps)
 
-      KEFlux1 = Diagnostic(Utils.calc_KEFlux_1, prob; nsteps)
-      APEFlux1 = Diagnostic(Utils.calc_APEFlux_1, prob; nsteps)
-      ShearFlux1 = Diagnostic(Utils.calc_ShearFlux_1, prob; nsteps)
-      KEFlux2 = Diagnostic(Utils.calc_KEFlux_2, prob; nsteps)
-      APEFlux2 = Diagnostic(Utils.calc_APEFlux_2, prob; nsteps)
-      TopoFlux2 = Diagnostic(Utils.calc_TopoFlux_2, prob; nsteps)
-      DragFlux2 = Diagnostic(Utils.calc_DragFlux_2, prob; nsteps)
+      #KEFlux1 = Diagnostic(Utils.calc_KEFlux_1, prob; nsteps)
+      #APEFlux1 = Diagnostic(Utils.calc_APEFlux_1, prob; nsteps)
+      #ShearFlux1 = Diagnostic(Utils.calc_ShearFlux_1, prob; nsteps)
+      #KEFlux2 = Diagnostic(Utils.calc_KEFlux_2, prob; nsteps)
+      #APEFlux2 = Diagnostic(Utils.calc_APEFlux_2, prob; nsteps)
+      #TopoFlux2 = Diagnostic(Utils.calc_TopoFlux_2, prob; nsteps)
+      #DragFlux2 = Diagnostic(Utils.calc_DragFlux_2, prob; nsteps)
 
-      diags = [KE, APE, D, V, Lmix, KEFlux1, APEFlux1, ShearFlux1, KEFlux2, APEFlux2, TopoFlux2, DragFlux2]
+      diags = [KE, APE, D, V, Lmix]#, KEFlux1, APEFlux1, ShearFlux1, KEFlux2, APEFlux2, TopoFlux2, DragFlux2]
 
       filename = Params.path_name
       if isfile(filename); rm(filename); end
 
       out = Output(prob, filename, (:q, get_q),
                   (:KE, Utils.calc_KE), (:APE, Utils.calc_APE),
-                  (:D, Utils.calc_meridiff), (:V, Utils.calc_meribarovel), (:Lmix, Utils.calc_mixlen),
-                  (:KEFlux1, Utils.calc_KEFlux_1),
-                  (:APEFlux1, Utils.calc_APEFlux_1),
-                  (:ShearFlux1, Utils.calc_ShearFlux_1),
-                  (:KEFlux2, Utils.calc_KEFlux_2),
-                  (:APEFlux2, Utils.calc_APEFlux_2),
-                  (:TopoFlux2, Utils.calc_TopoFlux_2),
-                  (:DragFlux2, Utils.calc_DragFlux_2)
-                  )
+                  (:D, Utils.calc_meridiff), (:V, Utils.calc_meribarovel), (:Lmix, Utils.calc_mixlen))#,
+                  #(:KEFlux1, Utils.calc_KEFlux_1),
+                  #(:APEFlux1, Utils.calc_APEFlux_1),
+                  #(:ShearFlux1, Utils.calc_ShearFlux_1),
+                  #(:KEFlux2, Utils.calc_KEFlux_2),
+                  #(:APEFlux2, Utils.calc_APEFlux_2),
+                  #(:TopoFlux2, Utils.calc_TopoFlux_2),
+                  #(:DragFlux2, Utils.calc_DragFlux_2)
+                  #)
 
       # If starting from t = 0:
       Utils.set_initial_condition!(prob, Params.E0, Params.K0, Params.Kd)

@@ -48,7 +48,7 @@ end
 Returns a 2D, isotropic topography field defined by the Goff Jordan spectrum with random phases. 
 """
 
-function goff_jordan_iso(hrms, Ktopo, Lx, nx, dev)
+function goff_jordan_iso(h_star, f0, U0, H0, Lx, nx, dev)
 
 	 # Wavenumber grid
 	 nk = Int(nx / 2 + 1)
@@ -68,12 +68,19 @@ function goff_jordan_iso(hrms, Ktopo, Lx, nx, dev)
 	 l0 = 1.8e-4
 
 	 Random.seed!(1234)
-	 hspec =  2 * pi * hrms^2 * (mu - 2) / (k0 * l0) .* (1 + (kk ./ k0).^2 + (ll ./ l0).^2)^(-mu / 2)
+	 hspec = @. 2 * pi * hrms^2 * (mu - 2) / (k0 * l0) * (1 + (k / k0)^2 + (l / l0)^2)^(-mu / 2)
 	 hh = hspec .* exp.(2 * pi * im .* rand(nk, nl))
 
 	 # Recover h from hh
 	 h = irfft(hh, nx)
 
+	 # Get peak in topographic spectrum for calculating h_*
+	 dhdx = irfft(im .* k .* hh, nx)
+	 dhdy = irfft(im .* l .* hh, nx)
+	 Ktopo = sqrt(mean(dhdx.^2 .+ dhdy.^2)) / sqrt(mean(h.^2))
+	 
+	 # Get hrms for given h_star, and scale h
+	 hrms = h_star * U0 * H0 * Ktopo / f
 	 c = hrms / sqrt.(mean(h.^2))
 	 h = c .* h
 
