@@ -68,7 +68,7 @@ function goff_jordan_iso(h_star, f0, U0, H0, Lx, nx, dev)
 	 l0 = 1.8e-4
 
 	 Random.seed!(1234)
-	 hspec = @. 2 * pi * hrms^2 * (mu - 2) / (k0 * l0) * (1 + (k / k0)^2 + (l / l0)^2)^(-mu / 2)
+	 hspec = @. 2 * pi * (mu - 2) / (k0 * l0) * (1 + (k / k0)^2 + (l / l0)^2)^(-mu / 2)
 	 hh = hspec .* exp.(2 * pi * im .* rand(nk, nl))
 
 	 # Recover h from hh
@@ -80,20 +80,12 @@ function goff_jordan_iso(h_star, f0, U0, H0, Lx, nx, dev)
 	 Ktopo = sqrt(mean(dhdx.^2 .+ dhdy.^2)) / sqrt(mean(h.^2))
 	 
 	 # Get hrms for given h_star, and scale h
-	 hrms = h_star * U0 * H0 * Ktopo / f
+	 hrms = h_star * U0 * H0 * Ktopo / f0
 	 c = hrms / sqrt.(mean(h.^2))
 	 h = c .* h
 
 	 return h
 end
-
-
-"""
-	set_initial_condition!(prob, grid, K0, E0)
-
-	Sets the initial condition of MultiLayerQG to be a random q(x,y) field with baroclinic structure
-	and with energy localized in spectral space about K = K0 and with total kinetic energy equal to E0
-"""
 
 
 """
@@ -164,8 +156,6 @@ function set_initial_condition!(prob, E0, K0, Kd)
     # Set as initial condition
     MultiLayerQG.set_q!(prob, A(q))
 end
-
-
 
 ### Calculate diagnostics ###
 
