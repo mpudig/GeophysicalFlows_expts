@@ -240,13 +240,10 @@ end
 function calc_KEFlux_1(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
-	nx = grid.nx
-	Lx = grid.Lx
-
+	### Create isotropic wavenumber grid ###
 	nk = Int(nx / 2 + 1)
 	nl = nx
 
-	# Make isotropic wavenumber grid
 	kr = prob.grid.kr
 	l = prob.grid.l
 	Kr = @. sqrt(kr^2 + l^2)
@@ -260,79 +257,58 @@ function calc_KEFlux_1(prob)
 	dl = dkr
 	dKr = sqrt(dkr^2 + dl^2)
  
-	K = Kmin:dKr:Kmax-1
+	K = Kmin:dKr:Kmax-dKr
 	K_id = lastindex(K)
 	
-	# Get stream functions and vorticity
-	psih = view(vars.ψh, :, :, :)
-	uh = view(vars.uh, :, :, :)
-	vh = view(vars.vh, :, :, :)
-	zeta = view(vars.ψ, :, :, :)   # use as scratch variable
-	invtransform!(zeta, -grid.Krsq .* vars.ψh, params)
-	
-	# Loop over filters and calculate KE flux
-	KEflux = zeros(K_id)
+	KEFlux1 = zeros(K_id)
 
 	for j = 1:K_id
+        # Get stream functions and vorticity
+	    psih = vars.ψh
+	    zetah = -grid.Krsq .* vars.ψh
+
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
 		# Filter the Fourier transformed fields
-		psih_hpf = view(hpf, :, :) .* psih
-		uh_lpf = uh .- view(hpf, :, :) .* uh
-		vh_lpf = vh .- view(hpf, :, :) .* vh
+		psih_hpf = hpf .* psih
 
 		# Inverse transform the filtered fields
-		psi_hpf = view(vars.ψ, :, :, :)          # use as scratch variable
+		psi_hpf = A(zeros(nx, nx, nlayers))
 		invtransform!(psi_hpf, psih_hpf, params)
 
-		u_lpf = view(vars.ψ, :, :, :)            # use as scratch variable
-		invtransform!(u_lpf, uh_lpf, params)
+		# Calculate spectral derivatives of zeta
+		zetah_ik = im .* grid.kr .* zetah
+		zetah_il = im .* grid.l .* zetah
 
-		v_lpf = view(vars.ψ, :, :, :)            # use as scratch variable
-		invtransform!(v_lpf, vh_lpf, params)
+		# Calculate real derivatives of zeta
+		zeta_dx = A(zeros(nx, nx, nlayers))
+		invtransform!(zeta_dx, zetah_ik, params)
 
-		# Multiply for spectral products
-		uzeta = u_lpf .* zeta
-		uzetah = view(vars.ψh, :, :, :)          # use as scratch variable
-		fwdtransform!(uzetah, uzeta, params) 
-
-		vzeta = v_lpf .* zeta
-		vzetah = view(vars.ψh, :, :, :)          # use as scratch variable
-		fwdtransform!(vzetah, vzeta, params)
-
-		# Calculate spectral derivatives
-		uzetah_ik = im .* grid.kr .* uzetah
-		vzetah_il = im .* grid.l .* vzetah
-		
-		# Inverse transform spectral derivatives
-		uzeta_dx = view(vars.ψ, :, :, :)         # use as scratch variable
-		invtransform!(uzeta_dx, uzetah_ik, params)
-
-		vzeta_dy = view(vars.ψ, :, :, :)         # use as scratch variable
-		invtransform!(vzeta_dy, vzetah_il, params)
+		zeta_dy = A(zeros(nx, nx, nlayers))
+		invtransform!(zeta_dy, zetah_il, params)
 
 		# Create views of only upper layer fields
 		psi_hpf_1 = view(psi_hpf, :, :, 1)
-		uzeta_dx_1 = view(uzeta_dx, :, :, 1)
-		vzeta_dy_1 = view(vzeta_dy, :, :, 1)
+		u_1 = view(vars.u, :, :, 1)
+		v_1 = view(vars.v, :, :, 1)
+		zeta_dx_1 = view(zeta_dx, :, :, 1)
+		zeta_dy_1 = view(zeta_dy, :, :, 1)
 
-		view(KEflux, j) .= mean(psi_hpf_1 .* uzeta_dx_1 + psi_hpf_1 .* vzeta_dy_1)
+		view(KEFlux1, j) .= mean(psi_hpf_1 .* u_1 .* zeta_dx_1 + psi_hpf_1 .* v_1 .* zeta_dy_1)
 	end
-
-	return KEflux
+	return KEFlux1
 end
 
 function calc_APEFlux_1(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
-	nx = grid.nx
-	Lx = grid.Lx
+	Ld = grid.Lx / (2 * pi * 25)
 
+	### Create isotropic wavenumber grid ###
 	nk = Int(nx / 2 + 1)
 	nl = nx
 
-	# Make isotropic wavenumber grid
 	kr = prob.grid.kr
 	l = prob.grid.l
 	Kr = @. sqrt(kr^2 + l^2)
@@ -346,78 +322,49 @@ function calc_APEFlux_1(prob)
 	dl = dkr
 	dKr = sqrt(dkr^2 + dl^2)
  
-	K = Kmin:dKr:Kmax-1
+	K = Kmin:dKr:Kmax-dKr
 	K_id = lastindex(K)
 	
-	# Get stream functions and velocity
-	psih = view(vars.ψh, :, :, :)
-	uh = view(vars.uh, :, :, :)
-	vh = view(vars.vh, :, :, :)
-	psi2 = view(vars.ψ, :, :, 2)
-	
-	# Loop over filters and calculate PE flux
-	PEflux = zeros(K_id)
+	APEFlux1 = zeros(K_id)
 
-	for j = 1:K_id
+    for j = 1:K_id
+        # Get stream function
+        psih = vars.ψh
+
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
 		# Filter the Fourier transformed fields
-		psih_hpf = view(hpf, :, :) .* psih
-		uh_lpf = uh .- view(hpf, :, :) .* uh
-		vh_lpf = vh .- view(hpf, :, :) .* vh
-
-		# Inverse transform the filtered fields
-		psi_hpf = view(vars.ψ, :, :, :)          # use as scratch variable
+		psih_hpf = hpf .* psih
+        
+        # Inverse transform the filtered fields
+		psi_hpf = A(zeros(nx, nx, nlayers))
 		invtransform!(psi_hpf, psih_hpf, params)
+        
+        # Create views of single layer fields
+        psi_hpf_1 = view(psi_hpf, :, :, 1)
+        u1 = view(vars.u, :, :, 1)
+        u2 = view(vars.u, :, :, 2)
+        v1 = view(vars.v, :, :, 1)
+        v2 = view(vars.v, :, :, 2)
 
-		u_lpf = view(vars.ψ, :, :, :)            # use as scratch variable
-		invtransform!(u_lpf, uh_lpf, params)
-
-		v_lpf = view(vars.ψ, :, :, :)            # use as scratch variable
-		invtransform!(v_lpf, vh_lpf, params)
-
-		# Multiply for spectral products
-		upsi2 = u_lpf .* psi2
-		upsi2h = view(vars.ψh, :, :, :)          # use as scratch variable
-		fwdtransform!(upsi2h, upsi2, params) 
-
-		vpsi2 = v_lpf .* psi2
-		vpsi2h = view(vars.ψh, :, :, :)          # use as scratch variable
-		fwdtransform!(vpsi2h, vpsi2, params)
-
-		# Calculate spectral derivatives
-		upsi2h_ik = im .* grid.kr .* upsi2h
-		vpsi2h_il = im .* grid.l .* vpsi2h
-		
-		# Inverse transform spectral derivatives
-		upsi2_dx = view(vars.ψ, :, :, :)         # use as scratch variable
-		invtransform!(upsi2_dx, upsi2h_ik, params)
-
-		vpsi2_dy = view(vars.ψ, :, :, :)         # use as scratch variable
-		invtransform!(vpsi2_dy, vpsi2h_il, params)
-
-		# Create views of only upper layer fields
-		psi_hpf_1 = view(psi_hpf, :, :, 1)
-		upsi2_dx_1 = view(upsi2_dx, :, :, 1)
-		vpsi2_dy_1 = view(vpsi2_dy, :, :, 1)
-
-		view(PEflux, j) .= mean(0.5 .* psi_hpf_1 .* upsi2_dx_1 + 0.5 .* psi_hpf_1 .* vpsi2_dy_1)
+		view(APEFlux1, j) .= mean(0.5 / Ld^2 .* psi_hpf_1 .* u1 .* v2 - 0.5 / Ld^2 .* psi_hpf_1 .* u2 .* v1)
 	end
-
-	return PEflux
+	return APEFlux1
 end
 
 function calc_ShearFlux_1(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
-	nx = grid.nx
-	Lx = grid.Lx
+	Ld = grid.Lx / (2 * pi * 25)
+	U1 = view(params.U, 1, 1, 1)
+    U2 = view(params.U, 1, 1, 2)
+    U0 = 0.5 * (U1 - U2)
 
+	### Create isotropic wavenumber grid ###
 	nk = Int(nx / 2 + 1)
 	nl = nx
 
-	# Make isotropic wavenumber grid=
 	kr = prob.grid.kr
 	l = prob.grid.l
 	Kr = @. sqrt(kr^2 + l^2)
@@ -431,54 +378,48 @@ function calc_ShearFlux_1(prob)
 	dl = dkr
 	dKr = sqrt(dkr^2 + dl^2)
  
-	K = Kmin:dKr:Kmax-1
+	K = Kmin:dKr:Kmax-dKr
 	K_id = lastindex(K)
 
-	# Get stream functions and velocity
-	psih = view(vars.ψh, :, :, :)
-	psi2 = view(vars.ψ, :, :, 2)
-	
-	# Loop over filters and calculate shear forcing flux
-	ShearFlux = zeros(K_id)
+	ShearFlux1 = zeros(K_id)
 
 	for j = 1:K_id
+        # Get stream function
+	    psih = vars.ψh
+
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
 		# Filter the Fourier transformed fields
-		psih_hpf = view(hpf, :, :) .* psih
+		psih_hpf = hpf .* psih
 
 		# Calculate spectral derivative
-		psih_hpf_ik = im .* grid.kr .* psih_hpf
+		psih_ik = im .* grid.kr .* psih
 
-		# Inverse transform
-		psi_hpf = view(vars.ψ, :, :, :)          # use as scratch variable
+		# Inverse transforms
+		psi_hpf = A(zeros(nx, nx, nlayers))
 		invtransform!(psi_hpf, psih_hpf, params)
 
-		psi_hpf_dx = view(vars.ψ, :, :, :)       # use as scratch variable
-		invtransform!(psi_hpf_dx, psih_hpf_ik, params)
+		psi_dx = A(zeros(nx, nx, nlayers))
+		invtransform!(psi_dx, psih_ik, params)
 
 		# Views of necessary upper and lower layer fields
 		psi_hpf_1 = view(psi_hpf, :, :, 1)
-		psi_hpf_dx_2 = view(psi_hpf_dx, :, :, 2)
+		psi_dx_2 = view(psi_dx, :, :, 2)
 
 		# Calculate flux
-		view(ShearFlux, j) .= mean(psi_hpf_1 .* psi_hpf_dx_2)
+		view(ShearFlux1, j) .= mean(U0 ./ Ld^2 .* psi_hpf_1 .* psi_dx_2)
 	end
-
-	return ShearFlux
+	return ShearFlux1
 end
 
 function calc_KEFlux_2(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
-	nx = grid.nx
-	Lx = grid.Lx
-
+	### Create isotropic wavenumber grid ###
 	nk = Int(nx / 2 + 1)
 	nl = nx
 
-	# Make isotropic wavenumber grid
 	kr = prob.grid.kr
 	l = prob.grid.l
 	Kr = @. sqrt(kr^2 + l^2)
@@ -492,79 +433,58 @@ function calc_KEFlux_2(prob)
 	dl = dkr
 	dKr = sqrt(dkr^2 + dl^2)
  
-	K = Kmin:dKr:Kmax-1
+	K = Kmin:dKr:Kmax-dKr
 	K_id = lastindex(K)
 	
-	# Get stream functions and vorticity
-	psih = view(vars.ψh, :, :, :)
-	uh = view(vars.uh, :, :, :)
-	vh = view(vars.vh, :, :, :)
-	zeta = view(vars.ψ, :, :, :)   # use as scratch variable
-	invtransform!(zeta, -grid.Krsq .* vars.ψh, params)
-	
-	# Loop over filters and calculate KE flux
-	KEflux = zeros(K_id)
+	KEFlux2 = zeros(K_id)
 
 	for j = 1:K_id
+        # Get stream functions and vorticity
+	    psih = vars.ψh
+	    zetah = -grid.Krsq .* vars.ψh
+
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
 		# Filter the Fourier transformed fields
-		psih_hpf = view(hpf, :, :) .* psih
-		uh_lpf = uh .- view(hpf, :, :) .* uh
-		vh_lpf = vh .- view(hpf, :, :) .* vh
+		psih_hpf = hpf .* psih
 
 		# Inverse transform the filtered fields
-		psi_hpf = view(vars.ψ, :, :, :)          # use as scratch variable
+		psi_hpf = A(zeros(nx, nx, nlayers))
 		invtransform!(psi_hpf, psih_hpf, params)
 
-		u_lpf = view(vars.ψ, :, :, :)            # use as scratch variable
-		invtransform!(u_lpf, uh_lpf, params)
+		# Calculate spectral derivatives of zeta
+		zetah_ik = im .* grid.kr .* zetah
+		zetah_il = im .* grid.l .* zetah
 
-		v_lpf = view(vars.ψ, :, :, :)            # use as scratch variable
-		invtransform!(v_lpf, vh_lpf, params)
+		# Calculate real derivatives of zeta
+		zeta_dx = A(zeros(nx, nx, nlayers))
+		invtransform!(zeta_dx, zetah_ik, params)
 
-		# Multiply for spectral products
-		uzeta = u_lpf .* zeta
-		uzetah = view(vars.ψh, :, :, :)          # use as scratch variable
-		fwdtransform!(uzetah, uzeta, params) 
-
-		vzeta = v_lpf .* zeta
-		vzetah = view(vars.ψh, :, :, :)          # use as scratch variable
-		fwdtransform!(vzetah, vzeta, params)
-
-		# Calculate spectral derivatives
-		uzetah_ik = im .* grid.kr .* uzetah
-		vzetah_il = im .* grid.l .* vzetah
-		
-		# Inverse transform spectral derivatives
-		uzeta_dx = view(vars.ψ, :, :, :)         # use as scratch variable
-		invtransform!(uzeta_dx, uzetah_ik, params)
-
-		vzeta_dy = view(vars.ψ, :, :, :)         # use as scratch variable
-		invtransform!(vzeta_dy, vzetah_il, params)
+		zeta_dy = A(zeros(nx, nx, nlayers))
+		invtransform!(zeta_dy, zetah_il, params)
 
 		# Create views of only lower layer fields
 		psi_hpf_2 = view(psi_hpf, :, :, 2)
-		uzeta_dx_2 = view(uzeta_dx, :, :, 2)
-		vzeta_dy_2 = view(vzeta_dy, :, :, 2)
+		u_2 = view(vars.u, :, :, 2)
+		v_2 = view(vars.v, :, :, 2)
+		zeta_dx_2 = view(zeta_dx, :, :, 2)
+		zeta_dy_2 = view(zeta_dy, :, :, 2)
 
-		view(KEflux, j) .= mean(psi_hpf_2 .* uzeta_dx_2 + psi_hpf_2 .* vzeta_dy_2)
+		view(KEFlux2, j) .= mean(psi_hpf_2 .* u_2 .* zeta_dx_2 + psi_hpf_2 .* v_2 .* zeta_dy_2)
 	end
-
-	return KEflux
+	return KEFlux2
 end
 
 function calc_APEFlux_2(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
-	nx = grid.nx
-	Lx = grid.Lx
+	Ld = grid.Lx / (2 * pi * 25)
 
+	### Create isotropic wavenumber grid ###
 	nk = Int(nx / 2 + 1)
 	nl = nx
 
-	# Make isotropic wavenumber grid
 	kr = prob.grid.kr
 	l = prob.grid.l
 	Kr = @. sqrt(kr^2 + l^2)
@@ -578,78 +498,44 @@ function calc_APEFlux_2(prob)
 	dl = dkr
 	dKr = sqrt(dkr^2 + dl^2)
  
-	K = Kmin:dKr:Kmax-1
+	K = Kmin:dKr:Kmax-dKr
 	K_id = lastindex(K)
 	
-	# Get stream functions and velocity
-	psih = view(vars.ψh, :, :, :)
-	uh = view(vars.uh, :, :, :)
-	vh = view(vars.vh, :, :, :)
-	psi1 = view(vars.ψ, :, :, 1)
-	
-	# Loop over filters and calculate PE flux
-	PEflux = zeros(K_id)
+	APEFlux2 = zeros(K_id)
 
-	for j = 1:K_id
+    for j = 1:K_id
+        # Get stream function
+        psih = vars.ψh
+
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
 		# Filter the Fourier transformed fields
-		psih_hpf = view(hpf, :, :) .* psih
-		uh_lpf = uh .- view(hpf, :, :) .* uh
-		vh_lpf = vh .- view(hpf, :, :) .* vh
-
-		# Inverse transform the filtered fields
-		psi_hpf = view(vars.ψ, :, :, :)          # use as scratch variable
+		psih_hpf = hpf .* psih
+        
+        # Inverse transform the filtered fields
+		psi_hpf = A(zeros(nx, nx, nlayers))
 		invtransform!(psi_hpf, psih_hpf, params)
+        
+        # Create views of single layer fields
+        psi_hpf_2 = view(psi_hpf, :, :, 2)
+        u1 = view(vars.u, :, :, 1)
+        u2 = view(vars.u, :, :, 2)
+        v1 = view(vars.v, :, :, 1)
+        v2 = view(vars.v, :, :, 2)
 
-		u_lpf = view(vars.ψ, :, :, :)            # use as scratch variable
-		invtransform!(u_lpf, uh_lpf, params)
-
-		v_lpf = view(vars.ψ, :, :, :)            # use as scratch variable
-		invtransform!(v_lpf, vh_lpf, params)
-
-		# Multiply for spectral products
-		upsi1 = u_lpf .* psi1
-		upsi1h = view(vars.ψh, :, :, :)          # use as scratch variable
-		fwdtransform!(upsi1h, upsi1, params) 
-
-		vpsi1 = v_lpf .* psi1
-		vpsi1h = view(vars.ψh, :, :, :)          # use as scratch variable
-		fwdtransform!(vpsi1h, vpsi1, params)
-
-		# Calculate spectral derivatives
-		upsi1h_ik = im .* grid.kr .* upsi1h
-		vpsi1h_il = im .* grid.l .* vpsi1h
-		
-		# Inverse transform spectral derivatives
-		upsi1_dx = view(vars.ψ, :, :, :)         # use as scratch variable
-		invtransform!(upsi1_dx, upsi1h_ik, params)
-
-		vpsi1_dy = view(vars.ψ, :, :, :)         # use as scratch variable
-		invtransform!(vpsi1_dy, vpsi1h_il, params)
-
-		# Create views of only upper layer fields
-		psi_hpf_2 = view(psi_hpf, :, :, 2)
-		upsi1_dx_2 = view(upsi1_dx, :, :, 2)
-		vpsi1_dy_2 = view(vpsi1_dy, :, :, 2)
-
-		view(PEflux, j) .= mean(0.5 .* psi_hpf_2 .* upsi1_dx_2 + 0.5 .* psi_hpf_2 .* vpsi1_dy_2)
+		view(APEFlux2, j) .= mean(-0.5 / Ld^2 .* psi_hpf_2 .* u1 .* v2 + 0.5 / Ld^2 .* psi_hpf_2 .* u2 .* v1)
 	end
-
-	return PEflux
+	return APEFlux2
 end
 
 function calc_TopoFlux_2(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
-	nx = grid.nx
-	Lx = grid.Lx
-
+	### Create isotropic wavenumber grid ###
 	nk = Int(nx / 2 + 1)
 	nl = nx
 
-	# Make isotropic wavenumber grid
 	kr = prob.grid.kr
 	l = prob.grid.l
 	Kr = @. sqrt(kr^2 + l^2)
@@ -663,81 +549,63 @@ function calc_TopoFlux_2(prob)
 	dl = dkr
 	dKr = sqrt(dkr^2 + dl^2)
  
-	K = Kmin:dKr:Kmax-1
+	K = Kmin:dKr:Kmax-dKr
 	K_id = lastindex(K)
 	
-	# Get stream functions and topography
-	psih = view(vars.ψh, :, :, :)
-	uh = view(vars.uh, :, :, :)
-	vh = view(vars.vh, :, :, :)
-
-	f0 = params.f₀
-	H0 = sum(params.H)
-	htop = H0 / f0 .* params.eta
-	
-	# Loop over filters and calculate topographic flux
-	TopoFlux = zeros(K_id)
+	TopoFlux2 = zeros(K_id)
 
 	for j = 1:K_id
+        # Get stream function, velocity and topography
+	    psih = vars.ψh
+	    eta = A(params.eta)
+        u = vars.u
+        v = vars.v
+
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
 		# Filter the Fourier transformed fields
-		psih_hpf = view(hpf, :, :) .* psih
-		uh_lpf = uh .- view(hpf, :, :) .* uh
-		vh_lpf = vh .- view(hpf, :, :) .* vh
+		psih_hpf = hpf .* psih
 
 		# Inverse transform the filtered fields
-		psi_hpf = view(vars.ψ, :, :, :)          # use as scratch variable
+		psi_hpf = A(zeros(nx, nx, nlayers))
 		invtransform!(psi_hpf, psih_hpf, params)
 
-		u_lpf = view(vars.ψ, :, :, :)            # use as scratch variable
-		invtransform!(u_lpf, uh_lpf, params)
+		# Calculate forward transforms of products 
+		uetah = A(zeros(nk, nl, nlayers)) .* im
+		fwdtransform!(uetah, u .* eta, params)
 
-		v_lpf = view(vars.ψ, :, :, :)            # use as scratch variable
-		invtransform!(v_lpf, vh_lpf, params)
+        vetah = A(zeros(nk, nl, nlayers)) .* im
+		fwdtransform!(vetah, v .* eta, params)
 
-		# Multiply for spectral products
-		uhtop = u_lpf .* htop
-		uhtoph = view(vars.ψh, :, :, :)          # use as scratch variable
-		fwdtransform!(uhtoph, uhtop, params) 
-
-		vhtop = v_lpf .* htop
-		vhtoph = view(vars.ψh, :, :, :)          # use as scratch variable
-		fwdtransform!(vhtoph, vhtop, params)
-
-		# Calculate spectral derivatives
-		uhtoph_ik = im .* grid.kr .* uhtoph
-		vhtoph_il = im .* grid.l .* vhtoph
+        # Calculate spectral derivatives of products
+		uetah_ik = im .* grid.kr .* uetah
+		vetah_il = im .* grid.l .* vetah
 		
-		# Inverse transform spectral derivatives
-		uhtop_dx = view(vars.ψ, :, :, :)         # use as scratch variable
-		invtransform!(uhtop_dx, uhtoph_ik, params)
+		# Calculate real derivatives of products
+		ueta_dx = A(zeros(nx, nx, nlayers))
+		invtransform!(ueta_dx, etah_ik, params)
 
-		vhtop_dy = view(vars.ψ, :, :, :)         # use as scratch variable
-		invtransform!(vhtop_dy, vhtoph_il, params)
+		veta_dy = A(zeros(nx, nx, nlayers))
+		invtransform!(veta_dy, vetah_il, params)
 
 		# Create views of only lower layer fields
 		psi_hpf_2 = view(psi_hpf, :, :, 2)
-		uhtop_dx_2 = view(uhtop_dx, :, :, 2)
-		vhtop_dy_2 = view(vhtop_dy, :, :, 2)
+		ueta_dx_2 = view(ueta_dx, :, :, 2)
+		veta_dy_2 = view(veta_dy, :, :, 2)
 
-		view(TopoFlux, j) .= mean(2 .* psi_hpf_2 .* uhtop_dx_2 + 2 .* psi_hpf_2 .* vhtop_dy_2)
+		view(TopoFlux2, j) .= mean(psi_hpf_2 .* ueta_dx_2 + psi_hpf_2 .* veta_dy_2)
 	end
-
-	return TopoFlux
+	return TopoFlux2
 end
 
 function calc_DragFlux_2(prob)
 	vars, params, grid, sol = prob.vars, prob.params, prob.grid, prob.sol
 
-	nx = grid.nx
-	Lx = grid.Lx
-
+	### Create isotropic wavenumber grid ###
 	nk = Int(nx / 2 + 1)
 	nl = nx
 
-	# Make isotropic wavenumber grid
 	kr = prob.grid.kr
 	l = prob.grid.l
 	Kr = @. sqrt(kr^2 + l^2)
@@ -751,29 +619,28 @@ function calc_DragFlux_2(prob)
 	dl = dkr
 	dKr = sqrt(dkr^2 + dl^2)
  
-	K = Kmin:dKr:Kmax-1
+	K = Kmin:dKr:Kmax-dKr
 	K_id = lastindex(K)
 	
-	# Get velocities
-	uh = view(vars.uh, :, :, :)
-	vh = view(vars.vh, :, :, :)
-	
-	# Loop over filters and calculate drag flux
-	DragFlux = zeros(K_id)
+	DragFlux2 = zeros(K_id)
 
 	for j = 1:K_id
+        # Get velocities
+	    uh = vars.uh
+	    vh = vars.vh
+
 		# Define high-pass filter matrix
 		hpf = ifelse.(Kr .> K[j], Kr ./ Kr, 0 .* Kr)
 
 		# Filter the Fourier transformed fields
-		uh_hpf = view(hpf, :, :) .* uh
-		vh_hpf = view(hpf, :, :) .* vh
+		uh_hpf = hpf .* uh
+		vh_hpf = hpf .* vh
 
 		# Inverse transform the filtered fields
-		u_hpf = view(vars.ψ, :, :, :)            # use as scratch variable
+		u_hpf = A(zeros(nx, nx, nlayers))
 		invtransform!(u_hpf, uh_hpf, params)
 
-		v_hpf = view(vars.ψ, :, :, :)            # use as scratch variable
+		v_hpf = A(zeros(nx, nx, nlayers))
 		invtransform!(v_hpf, vh_hpf, params)
 
 		# Create views of only lower layer fields
@@ -781,10 +648,9 @@ function calc_DragFlux_2(prob)
 		v_hpf_2 = view(v_hpf, :, :, 2)
 
 		# Calculate drag flux
-		view(DragFlux, j) .= mean(-2 .* u_hpf.^2 - 2 .* v_hpf.^2)
+		view(DragFlux2, j) .= mean(-2 * μ .* u_hpf.^2 - 2 * μ .* v_hpf.^2)
 	end
-
-	return DragFlux
+	return DragFlux2
 end
 
 end

@@ -81,7 +81,7 @@ function convert_to_nc()
 	Kmax = sqrt(kmax^2 + lmax^2)
 	Kmin = 0.
 	dK = sqrt(dk^2 + dl^2)
-    K = Kmin:dK:Kmax-1
+    K = Kmin:dK:Kmax-dKr
 
     ### From here, create a new NetCDF file ###
     # The mode "c" stands for creating a new file (clobber); the mode "a" stands for opening in write mode
